@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quantum.nyameko.com/contracts/agent-control-plane/v1/event.schema.json",
+  "title": "AgentControlPlaneEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "occurred_at", "tenant", "subject", "task_id", "payload"],
+  "properties": {
+    "event_id": {"type": "string", "format": "uuid"},
+    "event_type": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]+$"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "tenant": {"type": "string"},
+    "subject": {"type": "string"},
+    "correlation_id": {"type": ["string", "null"]},
+    "conversation_id": {"type": ["string", "null"], "format": "uuid"},
+    "task_id": {"type": "string", "format": "uuid"},
+    "run_id": {"type": ["string", "null"], "format": "uuid"},
+    "sequence": {"type": "integer", "minimum": 0},
+    "payload": {"type": "object"},
+    "extensions": {"type": "object"}
+  }
+}

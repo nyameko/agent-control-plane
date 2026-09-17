@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quantum.nyameko.com/contracts/agent-control-plane/v1/task-request.schema.json",
+  "title": "TaskRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["subject", "tenant", "channel", "domain", "intent"],
+  "properties": {
+    "subject": {"type": "string", "minLength": 1},
+    "tenant": {"type": "string", "minLength": 1},
+    "channel": {"enum": ["web", "jupyter", "gptel", "telegram", "discord", "api", "system"]},
+    "domain": {"enum": ["general", "infrastructure", "quantum-platform", "quantum-workflow", "research", "security", "education", "community"]},
+    "intent": {"type": "string", "minLength": 1, "maxLength": 32000},
+    "quality": {"enum": ["fast", "balanced", "deep"], "default": "balanced"},
+    "sensitivity": {"enum": ["public", "internal", "confidential", "restricted"], "default": "internal"},
+    "context_tokens_estimate": {"type": "integer", "minimum": 0},
+    "mutation_requested": {"type": "boolean", "default": false},
+    "external_model_allowed": {"type": "boolean", "default": false},
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu_cores": {"type": "integer", "minimum": 1},
+        "memory_gib": {"type": "integer", "minimum": 1},
+        "gpu_count": {"type": "integer", "minimum": 0},
+        "minimum_gpu_memory_gib": {"type": "integer", "minimum": 0},
+        "multi_node": {"type": "boolean"},
+        "qpu_modality": {"type": ["string", "null"]},
+        "expected_runtime_seconds": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

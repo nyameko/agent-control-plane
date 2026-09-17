@@ -1,0 +1,104 @@
+version: 1
+
+agents:
+  - id: executive-orchestrator
+    kind: orchestrator
+    scope: cross-domain
+    runtime: hermes
+    default_model_pool: reasoning-deep
+    delegates_to:
+      - infra-orchestrator
+      - platform-orchestrator
+      - quantum-workflow-orchestrator
+      - research-orchestrator
+      - security-orchestrator
+    capabilities:
+      - catalog.read
+      - telemetry.read
+      - task.delegate
+      - plan.propose
+      - approval.request
+
+  - id: infra-orchestrator
+    kind: orchestrator
+    scope: infra-hpc-qc-k8s
+    runtime: hermes
+    default_model_pool: code-interactive
+    delegates_to:
+      - terraform-specialist
+      - ansible-specialist
+      - kubernetes-specialist
+      - slurm-specialist
+      - observability-specialist
+    capabilities:
+      - repository.read
+      - telemetry.read
+      - infrastructure.state.read
+      - sandbox.request
+      - patch.propose
+
+  - id: platform-orchestrator
+    kind: orchestrator
+    scope: quantum-platform
+    runtime: hermes
+    default_model_pool: code-interactive
+    capabilities:
+      - repository.read
+      - platform.metadata.read
+      - sandbox.request
+      - patch.propose
+
+  - id: quantum-workflow-orchestrator
+    kind: orchestrator
+    scope: quantum-workflows
+    runtime: hermes
+    default_model_pool: reasoning-deep
+    capabilities:
+      - repository.read
+      - workflow.catalog.read
+      - workflow.dry_run
+      - sandbox.request
+      - slurm.plan
+      - patch.propose
+
+  - id: research-orchestrator
+    kind: orchestrator
+    scope: research
+    runtime: hermes
+    default_model_pool: reasoning-deep
+    capabilities:
+      - literature.search
+      - research_graph.read
+      - collaboration.suggest
+      - workflow.catalog.read
+
+  - id: security-orchestrator
+    kind: orchestrator
+    scope: security
+    runtime: hermes
+    default_model_pool: reasoning-private
+    capabilities:
+      - security.telemetry.read
+      - telemetry.read
+      - remediation.propose
+      - approval.request
+
+  - id: tutor-orchestrator
+    kind: orchestrator
+    scope: education
+    runtime: hermes
+    default_model_pool: general-private
+    capabilities:
+      - curriculum.read
+      - sandbox.request
+      - progress.read_own
+
+  - id: community-orchestrator
+    kind: orchestrator
+    scope: uyuyu-africa
+    runtime: hermes
+    default_model_pool: general-private
+    capabilities:
+      - activation.catalog.read
+      - collaboration.suggest
+      - public_content.draft

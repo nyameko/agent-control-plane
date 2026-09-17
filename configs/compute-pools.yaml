@@ -1,0 +1,55 @@
+version: 1
+
+execution_classes:
+  none:
+    scheduler: none
+    purpose: reasoning without a separate tool worker
+
+  sandbox-cpu-standard:
+    provisioner: openstack
+    scheduler: sandbox-broker
+    shape: 32-vcpu
+    network: egress-filtered
+    lifetime: ephemeral
+
+  sandbox-cpu-large:
+    provisioner: openstack
+    scheduler: sandbox-broker
+    shape: 64-vcpu
+    network: egress-filtered
+    lifetime: ephemeral
+
+  kubernetes-job:
+    provisioner: kubernetes
+    scheduler: kubernetes
+    purpose: bounded service-side asynchronous work
+
+  slurm-a100:
+    scheduler: slurm
+    resource: gpu:a100
+    purpose: interactive or single-GPU accelerated work
+
+  slurm-h200:
+    scheduler: slurm
+    resource: gpu:h200
+    purpose: large-model, simulation or multi-GPU work
+
+  slurm-multinode:
+    scheduler: slurm
+    resource: capability-resolved
+    purpose: MPI and multi-node HPC
+
+  slurm-qpu-gate:
+    scheduler: slurm
+    broker: qrmi
+    resource: qpu:gate
+
+  slurm-qpu-neutral-atom:
+    scheduler: slurm
+    broker: qdmi-or-provider-adapter
+    resource: qpu:neutral-atom
+
+  slurm-qpu-annealing:
+    scheduler: slurm
+    broker: provider-adapter
+    resource: qpu:annealing

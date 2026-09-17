@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quantum.nyameko.com/contracts/agent-control-plane/v1/execution-plan.schema.json",
+  "title": "ExecutionPlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "agent", "runtime", "model_pool", "execution_class", "approval_required", "external_model_allowed", "reasons", "policy_notes"],
+  "properties": {
+    "contract_version": {"const": "1.0"},
+    "agent": {"type": "string"},
+    "runtime": {"type": "string"},
+    "model_pool": {"type": "string"},
+    "execution_class": {"type": "string"},
+    "approval_required": {"type": "boolean"},
+    "approval_surface": {"type": ["string", "null"]},
+    "external_model_allowed": {"type": "boolean"},
+    "reasons": {"type": "array", "items": {"type": "string"}},
+    "policy_notes": {"type": "array", "items": {"type": "string"}},
+    "extensions": {"type": "object"}
+  }
+}

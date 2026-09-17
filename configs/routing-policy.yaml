@@ -1,0 +1,42 @@
+version: 1
+
+rules:
+  - id: restricted-local-only
+    when:
+      sensitivity: restricted
+    require:
+      self_hosted_model: true
+      external_egress: false
+
+  - id: mutation-approval
+    when:
+      mutation_requested: true
+    require:
+      approval: true
+      immutable_plan_digest: true
+      sandbox: true
+
+  - id: external-chat-no-privileged-approval
+    when:
+      channel_in: [telegram, discord]
+      mutation_requested: true
+    require:
+      approval_surface: quantum-platform-webauthn
+
+  - id: multi-node-through-slurm
+    when:
+      multi_node: true
+    require:
+      execution_scheduler: slurm
+
+  - id: qpu-through-broker
+    when:
+      qpu_required: true
+    require:
+      execution_scheduler: slurm
+      credential_injection: just-in-time
+
+  - id: deny-direct-production-mutation-v0
+    when:
+      capability_in: [git.merge, kubernetes.apply, terraform.apply]
+    effect: deny

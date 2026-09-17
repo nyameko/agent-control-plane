@@ -1,0 +1,79 @@
+version: 1
+
+defaults:
+  effect: deny
+  mutation: false
+
+capabilities:
+  repository.read:
+    risk: low
+    mode: read
+  telemetry.read:
+    risk: medium
+    mode: read
+    output_redaction: required
+  security.telemetry.read:
+    risk: high
+    mode: read
+    untrusted_content: true
+    output_redaction: required
+  infrastructure.state.read:
+    risk: medium
+    mode: read
+  platform.metadata.read:
+    risk: medium
+    mode: read
+  workflow.catalog.read:
+    risk: low
+    mode: read
+  workflow.dry_run:
+    risk: medium
+    mode: execute
+    sandbox: required
+  literature.search:
+    risk: low
+    mode: read
+    untrusted_content: true
+  collaboration.suggest:
+    risk: low
+    mode: propose
+  sandbox.request:
+    risk: medium
+    mode: request
+  slurm.plan:
+    risk: low
+    mode: propose
+  task.delegate:
+    risk: medium
+    mode: request
+  plan.propose:
+    risk: low
+    mode: propose
+  patch.propose:
+    risk: medium
+    mode: propose
+  remediation.propose:
+    risk: high
+    mode: propose
+  approval.request:
+    risk: low
+    mode: request
+  git.push_branch:
+    risk: high
+    mode: mutate
+    approval: required
+  git.merge:
+    risk: critical
+    mode: mutate
+    approval: required
+    enabled: false
+  kubernetes.apply:
+    risk: critical
+    mode: mutate
+    approval: required
+    enabled: false
+  terraform.apply:
+    risk: critical
+    mode: mutate
+    approval: required
+    enabled: false

@@ -1,0 +1,45 @@
+version: 1
+
+# Pools are logical service levels. Model names, replicas and physical placement change without
+# changing clients or agent definitions.
+model_pools:
+  general-fast:
+    sensitivity_maximum: internal
+    latency: interactive
+    preferred_runtime: vllm
+    preferred_compute: a100
+    fallback_runtime: ollama
+
+  general-private:
+    sensitivity_maximum: restricted
+    latency: interactive
+    preferred_runtime: vllm
+    preferred_compute: a100
+    fallback_runtime: llama-cpp
+
+  code-interactive:
+    sensitivity_maximum: confidential
+    latency: interactive
+    preferred_runtime: vllm
+    preferred_compute: a100
+    fallback_compute: h200
+
+  reasoning-deep:
+    sensitivity_maximum: confidential
+    latency: batch-or-streaming
+    preferred_runtime: vllm
+    preferred_compute: h200
+    allow_external_fallback: policy-controlled
+
+  reasoning-private:
+    sensitivity_maximum: restricted
+    latency: batch-or-streaming
+    preferred_runtime: vllm
+    preferred_compute: h200
+    allow_external_fallback: false
+
+  embedding-private:
+    sensitivity_maximum: restricted
+    latency: batch
+    preferred_runtime: vllm
+    preferred_compute: a100
