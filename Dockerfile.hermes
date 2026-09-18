@@ -1,0 +1,20 @@
+FROM python:3.12-slim
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1
+ENV HERMES_REVISION=a566d20d226a8e2ef0747639dc8a3fc1c43f9dba
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && git init /opt/hermes-src \
+    && git -C /opt/hermes-src remote add origin https://github.com/NousResearch/hermes-agent.git \
+    && git -C /opt/hermes-src fetch --depth=1 origin "$HERMES_REVISION" \
+    && git -C /opt/hermes-src checkout --detach FETCH_HEAD \
+    && test "$(git -C /opt/hermes-src rev-parse HEAD)" = "$HERMES_REVISION" \
+    && python -m pip install -e /opt/hermes-src
+WORKDIR /build
+COPY pyproject.toml README.md LICENSE ./
+COPY src ./src
+RUN python -m pip install . \
+    && groupadd --gid 10001 agentcp \
+    && useradd --uid 10001 --gid 10001 --create-home agentcp
+USER 10001:10001
+WORKDIR /var/lib/hermes
+CMD ["python", "-m", "agent_control_plane.worker"]

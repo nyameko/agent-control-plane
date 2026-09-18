@@ -26,3 +26,9 @@ stable records; the numbered guides explain the wider rationale and implementati
 - [ADR-0003: state has explicit owners](adr/0003-state-has-explicit-owners.md)
 - [ADR-0004: Hermes first, pluggable harnesses](adr/0004-hermes-first-runtime-pluggable-harnesses.md)
 - [ADR-0005: human approval for mutations](adr/0005-human-approval-for-mutations.md)
+
+## Executable Phase 1 and ADE integration
+
+- [Phase 1 implementation contract](12-phase1.md)
+- [Spacemacs, Hermes, Herdr, Herder and Glyph](13-ade-workflow.md)
+- [Integration review and future roadmap](14-integration-review.md)

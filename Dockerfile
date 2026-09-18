@@ -10,7 +10,7 @@ FROM python:3.12-slim
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-RUN addgroup --system agentcp && adduser --system --ingroup agentcp --uid 10001 agentcp
+RUN addgroup --system --gid 10001 agentcp && adduser --system --ingroup agentcp --uid 10001 agentcp
 COPY --from=builder /install /usr/local
 
 USER 10001:10001

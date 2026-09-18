@@ -1,21 +1,40 @@
 name: ci
-
 on:
   push:
   pull_request:
-
 permissions:
   contents: read
-
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: agent_control_plane_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      ACP_TEST_OWNER_DATABASE_URL: postgresql://postgres:test-only@localhost:5432/agent_control_plane_test
+      ACP_TEST_DATABASE_URL: postgresql://acp_app:test-only@localhost:5432/agent_control_plane_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
           cache: pip
       - run: python -m pip install -e '.[dev]'
-      - run: ruff check src tests
-      - run: pytest
+      - run: ruff check src tests scripts
+      - run: pytest -k 'not pinned_sdk'
+      - name: Install reviewed Hermes source
+        run: |
+          git init /tmp/hermes
+          git -C /tmp/hermes remote add origin https://github.com/NousResearch/hermes-agent.git
+          git -C /tmp/hermes fetch --depth=1 origin a566d20d226a8e2ef0747639dc8a3fc1c43f9dba
+          git -C /tmp/hermes checkout --detach FETCH_HEAD
+          python -m pip install -e /tmp/hermes
+      - name: Verify real Hermes adapter against a local protocol fixture
+        run: ACP_TEST_HERMES=1 pytest tests/test_hermes_contract.py

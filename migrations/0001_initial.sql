@@ -1,3 +1,5 @@
+-- DESIGN REFERENCE ONLY: Phase 1 uses src/agent_control_plane/schema.sql.
+-- Do not apply this proposed future schema to the Phase 1 database.
 -- Proposed PostgreSQL V0.1 schema.
 -- Production rollout should wrap this in the selected migration tool and use a dedicated database
 -- role. The agent runtime and model servers must not receive that role.
