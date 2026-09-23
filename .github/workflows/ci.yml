@@ -31,12 +31,23 @@ jobs:
       - run: python -m pip install -e '.[dev]'
       - run: ruff check src tests scripts
       - run: pytest -k 'not pinned_sdk'
+
+  hermes-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - run: python -m pip install -e '.[dev]'
       - name: Install reviewed Hermes source
         run: |
           git init /tmp/hermes
           git -C /tmp/hermes remote add origin https://github.com/NousResearch/hermes-agent.git
           git -C /tmp/hermes fetch --depth=1 origin a566d20d226a8e2ef0747639dc8a3fc1c43f9dba
           git -C /tmp/hermes checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/hermes rev-parse HEAD)" = a566d20d226a8e2ef0747639dc8a3fc1c43f9dba
           python -m pip install -e /tmp/hermes
-      - name: Verify real Hermes adapter against a local protocol fixture
+      - name: Verify pinned Hermes adapter against local protocol fixture
         run: ACP_TEST_HERMES=1 pytest tests/test_hermes_contract.py
