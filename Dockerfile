@@ -1,11 +1,11 @@
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim-bookworm AS builder
 
 WORKDIR /build
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
 RUN python -m pip install --no-cache-dir --prefix=/install .
 
-FROM python:3.12-slim
+FROM python:3.14-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
