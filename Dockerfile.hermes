@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.14-slim-bookworm
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1
 ENV HERMES_REVISION=a566d20d226a8e2ef0747639dc8a3fc1c43f9dba
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
