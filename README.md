@@ -129,3 +129,7 @@ Portal          Jupyter workbench          SSH/TUI
 The agent may help choose a logical execution target such as `qiskit-aer-large`, explain cost/queue/fit, or submit a bounded authorized job through the platform execution API. It must not bypass entitlement policy or translate user intent into unrestricted raw scheduler access.
 
 Notebook culling, pod restart or switching to SSH must not destroy the user's canonical conversation/memory. Runtime PVCs remain implementation state only; stable conversation IDs and user/programme memory remain platform data.
+
+## Public topology policy
+
+This repository may describe infrastructure **roles, trust boundaries and logical execution targets**, but it must not duplicate the authoritative live network map. Concrete internal CIDRs, fixed addresses, VPN peer mappings, provider IDs and environment node counts belong in protected `infra-hpc-qc-k8s` environment data. Public examples use semantic role names/placeholders instead.
