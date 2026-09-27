@@ -106,3 +106,26 @@ and refine data ownership where that earlier proposal was broader.
 ## License
 
 Apache-2.0.
+
+## Jupyter workbench and execution clients
+
+The normal research notebook is a cheap KubeSpawner workbench, not a standing HPC reservation. Agent Control Plane should treat portal, Jupyter and SSH as **clients of the same durable conversation/task services**.
+
+```text
+Portal          Jupyter workbench          SSH/TUI
+  \                  |                     /
+   \                 |                    /
+      authenticated user/delegation
+                 |
+         Agent Control Plane
+          /             \
+   conversation       bounded tools
+     state                |
+                          +-> execution API / quantum-workflows
+                          +-> diagnostics
+                          +-> reviewed mutations
+```
+
+The agent may help choose a logical execution target such as `qiskit-aer-large`, explain cost/queue/fit, or submit a bounded authorized job through the platform execution API. It must not bypass entitlement policy or translate user intent into unrestricted raw scheduler access.
+
+Notebook culling, pod restart or switching to SSH must not destroy the user's canonical conversation/memory. Runtime PVCs remain implementation state only; stable conversation IDs and user/programme memory remain platform data.
