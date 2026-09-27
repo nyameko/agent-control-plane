@@ -133,3 +133,7 @@ Notebook culling, pod restart or switching to SSH must not destroy the user's ca
 ## Public topology policy
 
 This repository may describe infrastructure **roles, trust boundaries and logical execution targets**, but it must not duplicate the authoritative live network map. Concrete internal CIDRs, fixed addresses, VPN peer mappings, provider IDs and environment node counts belong in protected `infra-hpc-qc-k8s` environment data. Public examples use semantic role names/placeholders instead.
+
+## Public repository topology policy
+
+Public documentation describes **roles, trust boundaries, interfaces and example topology**, not the authoritative live internal network map. Real CIDRs, fixed host addresses, VPN peer mappings, provider resource IDs and environment-specific routing belong in protected infrastructure inventory/private variables. Examples should use semantic placeholders such as `<MGMT_CIDR>`, `<K8S_API_VIP>`, `<SLURM_CONTROLLER_IP>` or private DNS abstractions rather than production addresses.
