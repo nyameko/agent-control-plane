@@ -199,3 +199,17 @@ scoped shared platform services or run isolated deployments. They should not
 inherit the infrastructure administrative tenant or its credentials. The
 scientific differentiator remains reproducible hybrid workflows and usable access
 to compute, not the number of agent frameworks chained together.
+
+## Workbench-first researcher model
+
+The default Jupyter path is now KubeSpawner on dedicated low-cost Kubernetes user workers. This changes the role of the agent integration without changing state ownership:
+
+- the workbench is a client surface, not the canonical memory store;
+- the same conversation ID can continue in Quantum Platform, JupyterLab or an SSH/TUI client;
+- substantial CPU/GPU work is submitted to Slurm on demand;
+- QPU work is submitted to the provider/broker only when required;
+- BatchSpawner remains an explicit interactive-HPC mode for workloads that need the notebook kernel inside a scarce allocation.
+
+Agents should reason in terms of **logical execution offerings** and policy-visible cost/availability, not hidden Slurm partition names. A future specialist can say that an H200-backed target is appropriate and request it through a bounded execution contract; deterministic policy resolves and validates the physical resource.
+
+The notebook pod must never receive the union of agent credentials, Slurm administrator credentials or QPU provider secrets. Use short-lived scoped delegation from the authenticated platform user to the specific conversation/job action.
