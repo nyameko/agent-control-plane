@@ -36,7 +36,6 @@ def test_personal_conversation_persists_across_requests_and_is_subject_isolated(
     assert message.status_code == 201, message.text
     assert message.json()["sequence"] == 1
 
-    # A new HTTP request reopens PostgreSQL-backed state; browser process state is irrelevant.
     reopened = client.get(f"/v1/conversations/{conversation_id}", headers=owner_headers)
     assert reopened.status_code == 200
     assert reopened.json()["project_id"] == project_id
@@ -44,7 +43,11 @@ def test_personal_conversation_persists_across_requests_and_is_subject_isolated(
 
     other_subject = f"urn:quantum-platform:user:{uuid4()}"
     other_headers = token(scope="agent:personal", sub=other_subject)
-    assert client.get(f"/v1/conversations/{conversation_id}", headers=other_headers).status_code == 404
+    forbidden = client.get(
+        f"/v1/conversations/{conversation_id}",
+        headers=other_headers,
+    )
+    assert forbidden.status_code == 404
     assert client.get("/v1/conversations", headers=other_headers).json()["items"] == []
     assert client.get("/v1/projects", headers=other_headers).json()["items"] == []
 
@@ -90,9 +93,9 @@ def test_personal_rls_requires_subject_context(database):
             source_channel="ssh",
         )
         assert db.conversation_detail(conn, outsider, conversation["id"]) is None
-        # Tenant context without a subject is deliberately insufficient for personal state.
         with db.scoped(conn, owner.tenant):
-            assert conn.execute("SELECT count(*) AS n FROM acp1.conversation").fetchone()["n"] == 0
+            rows = conn.execute("SELECT count(*) AS n FROM acp1.conversation").fetchone()
+            assert rows["n"] == 0
 
 
 def test_personal_scope_does_not_authorize_admin_api(database, client, token):
@@ -109,5 +112,5 @@ def test_schema_is_migrated_to_m4a(database):
         versions = conn.execute(
             "SELECT version FROM acp1.schema_version ORDER BY version"
         ).fetchall()
-        assert versions == [{"version": 1}, {"version": 2}]
+        assert versions == [{"version": 1}, {"version": 2}, {"version": 3}]
         db.ready(conn)
