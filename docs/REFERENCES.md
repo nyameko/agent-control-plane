@@ -1,24 +1,38 @@
 # References
 
-Primary project documentation reviewed for this initial architecture:
+Primary project repositories:
 
-- [`infra-hpc-qc-k8s`](https://github.com/nyameko/infra-hpc-qc-k8s)
-- [`quantum-platform`](https://github.com/nyameko/quantum-platform)
-- [`quantum-workflows`](https://github.com/nyameko/quantum-workflows)
-- [`uyuyu.africa`](https://github.com/nyameko/uyuyu.africa)
+- [infra-hpc-qc-k8s](https://github.com/nyameko/infra-hpc-qc-k8s)
+- [quantum-platform](https://github.com/nyameko/quantum-platform)
+- [quantum-workflows](https://github.com/nyameko/quantum-workflows)
+- [uyuyu.africa](https://github.com/nyameko/uyuyu.africa)
 - [CHPC Student Cluster Competition](https://github.com/chpc-tech-eval/scc)
+
+Agent/client ecosystem considered by the architecture:
+
+- [Hermes Agent](https://github.com/NousResearch/hermes-agent)
+- [Hermes documentation](https://hermes-agent.nousresearch.com/)
+- [LangGraph](https://docs.langchain.com/oss/python/langgraph/overview)
+- [Letta](https://docs.letta.com/)
+- [PydanticAI](https://ai.pydantic.dev/)
+- [Microsoft Agent Framework](https://learn.microsoft.com/agent-framework/)
+- [Hugging Face smolagents](https://huggingface.co/docs/smolagents/)
+- [OpenHands](https://github.com/All-Hands-AI/OpenHands)
+- [Goose](https://github.com/block/goose)
 - [gptel](https://github.com/karthink/gptel)
-- [Hermes Agent — programmatic integration](https://hermes-agent.nousresearch.com/docs/developer-guide/programmatic-integration)
-- [Hermes Agent — configuration and profile state](https://hermes-agent.nousresearch.com/docs/user-guide/configuration)
-- [Hermes Agent repository](https://github.com/NousResearch/hermes-agent)
-- [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness)
-- [Herder](https://github.com/cleonhp88/herder)
 - [Heretic](https://github.com/0xc1c4da/heretic)
-- [vLLM OpenAI-compatible serving](https://docs.vllm.ai/en/latest/serving/openai_compatible_server/)
-- [LiteLLM proxy and routing](https://docs.litellm.ai/)
+
+Inference/model-serving references:
+
+- [vLLM](https://docs.vllm.ai/)
+- [Ollama](https://ollama.com/)
+- [llama.cpp](https://github.com/ggml-org/llama.cpp)
+- [LiteLLM](https://docs.litellm.ai/)
+
+Security/risk references:
+
 - [OWASP Top 10 for LLM Applications](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
-- [OWASP Agentic AI threats and mitigations](https://genai.owasp.org/resource/agentic-ai-threats-and-mitigations/)
+- [OWASP Agentic AI resources](https://genai.owasp.org/)
 - [NIST AI Risk Management Framework](https://www.nist.gov/itl/ai-risk-management-framework)
 
-Upstream interfaces are versioned dependencies. Verify the pinned release at implementation time;
-do not treat a moving documentation page as an immutable deployment contract.
+Upstream interfaces are moving dependencies. Pin/review the actual implementation revision used in production and keep adapter conformance tests rather than treating a documentation URL as an immutable contract.
