@@ -61,7 +61,12 @@ Only then add external chat, autonomous schedules, more harnesses and production
 - prove untrusted log text cannot request a tool action;
 - correlate one request across portal, Hermes and telemetry.
 
-## Phase 2 — persistent user assistant
+## M4 / Phase 2 — persistent user assistant
+
+### M4 acceptance contract
+
+One project/conversation must survive browser close, Jupyter Pod replacement, SSH disconnect and runtime-worker restart, and be resumable from another supported client. Canonical state lives in ACP/PostgreSQL; runtime-local profile/session state is correlated but non-canonical.
+
 
 ### `quantum-platform`
 
