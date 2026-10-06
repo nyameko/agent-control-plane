@@ -39,6 +39,17 @@ ALTER TABLE acp1.task
         FOREIGN KEY (tenant, requested_by, input_message_id)
         REFERENCES acp1.message(tenant, owner_subject, id);
 
+ALTER TABLE acp1.task
+    DROP CONSTRAINT IF EXISTS task_tenant_requested_by_idempotency_key_key;
+
+CREATE UNIQUE INDEX task_admin_idempotency_unique
+    ON acp1.task(tenant, requested_by, idempotency_key)
+    WHERE kind = 'admin_diagnostic';
+
+CREATE UNIQUE INDEX task_personal_idempotency_unique
+    ON acp1.task(tenant, requested_by, idempotency_key)
+    WHERE kind = 'personal_turn';
+
 CREATE UNIQUE INDEX task_personal_input_unique
     ON acp1.task(tenant, requested_by, input_message_id)
     WHERE kind = 'personal_turn';
