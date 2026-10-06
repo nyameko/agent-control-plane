@@ -5,7 +5,6 @@ import os
 import sys
 from pathlib import Path
 
-
 PERSONAL_SOUL = """You are a personal research and engineering assistant for Quantum Platform.
 The conversation supplied by Agent Control Plane is the canonical conversation history for this
 turn. Use it as context, but do not invent memories or facts that are not present. You have no
