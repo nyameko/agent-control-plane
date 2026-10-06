@@ -1,4 +1,4 @@
-"""Authenticated ACP APIs. M4a adds canonical personal conversation persistence only."""
+"""Authenticated ACP APIs for bounded admin work and M4a personal continuity."""
 
 from contextlib import asynccontextmanager
 from typing import Annotated, Literal
@@ -34,6 +34,13 @@ class ConversationCreate(BaseModel):
 class MessageCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     author_kind: Literal["user"]
+    content: dict | list | str
+    source_channel: Literal["web", "jupyter", "ssh", "gptel", "api"]
+    client_message_id: str | None = Field(default=None, max_length=200)
+
+
+class TurnCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     content: dict | list | str
     source_channel: Literal["web", "jupyter", "ssh", "gptel", "api"]
     client_message_id: str | None = Field(default=None, max_length=200)
@@ -167,6 +174,45 @@ def create_app(settings=None):
             )
         if result is None:
             raise HTTPException(404, "Conversation not found")
+        return result
+
+    @app.post("/v1/conversations/{conversation_id}/turns", status_code=202)
+    def create_turn(
+        conversation_id: UUID,
+        request: TurnCreate,
+        principal: Personal,
+        response: Response,
+        idempotency_key: Annotated[UUID, Header()],
+    ):
+        with db.connection(configured.database_url) as conn:
+            try:
+                result, created = db.create_turn(
+                    conn,
+                    principal,
+                    conversation_id,
+                    key=idempotency_key,
+                    content=request.content,
+                    source_channel=request.source_channel,
+                    client_message_id=request.client_message_id,
+                )
+            except db.QueueFull:
+                raise HTTPException(
+                    429,
+                    "Too many active personal turns",
+                    headers={"Retry-After": "5"},
+                ) from None
+        if result is None:
+            raise HTTPException(404, "Conversation not found")
+        response.status_code = 202 if created else 200
+        response.headers["Location"] = f"/v1/runs/{result['run_id']}"
+        return result
+
+    @app.get("/v1/runs/{run_id}")
+    def personal_run(run_id: UUID, principal: Personal):
+        with db.connection(configured.database_url) as conn:
+            result = db.run_detail(conn, principal, run_id)
+        if result is None:
+            raise HTTPException(404, "Run not found")
         return result
 
     return app

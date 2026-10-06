@@ -9,6 +9,7 @@ import psycopg
 MIGRATIONS = (
     (1, "schema.sql"),
     (2, "migrations/0002_m4a_personal_agent.sql"),
+    (3, "migrations/0003_m4a_personal_turn_ledger.sql"),
 )
 
 
@@ -25,9 +26,11 @@ def migrate(dsn):
             "CREATE TABLE IF NOT EXISTS acp1.schema_version "
             "(version integer PRIMARY KEY, checksum text NOT NULL)"
         )
-        installed = dict(conn.execute(
-            "SELECT version, checksum FROM acp1.schema_version ORDER BY version"
-        ).fetchall())
+        installed = dict(
+            conn.execute(
+                "SELECT version, checksum FROM acp1.schema_version ORDER BY version"
+            ).fetchall()
+        )
 
         known_versions = {version for version, _ in MIGRATIONS}
         unknown = set(installed) - known_versions

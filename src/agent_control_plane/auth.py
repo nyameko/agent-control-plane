@@ -1,6 +1,7 @@
 """Verify short-lived identity assertions issued by Quantum Platform."""
 
 from dataclasses import dataclass
+from typing import Annotated
 from uuid import UUID
 
 import jwt
@@ -53,13 +54,16 @@ def authenticate(request: Request) -> Principal:
     return Principal(subject, claims["tenant"], scopes)
 
 
-def require_admin(principal: Principal = Depends(authenticate)) -> Principal:
+Authenticated = Annotated[Principal, Depends(authenticate)]
+
+
+def require_admin(principal: Authenticated) -> Principal:
     if "admin:diagnostics" not in principal.scopes:
         raise HTTPException(401, "Administrative service assertion required")
     return principal
 
 
-def require_personal(principal: Principal = Depends(authenticate)) -> Principal:
+def require_personal(principal: Authenticated) -> Principal:
     if "agent:personal" not in principal.scopes:
         raise HTTPException(401, "Personal-agent service assertion required")
     return principal
