@@ -166,3 +166,101 @@ Users need explicit:
 - retention policy.
 
 Exports should use portable documented formats rather than dumping an opaque runtime profile directory.
+
+## 5.12 ACP state taxonomy
+
+Keep these state classes distinct even when they are related:
+
+1. **Conversation history** — what was said.
+2. **Durable agent memory** — what should be remembered.
+3. **Knowledge/RAG corpora** — documents, repositories, papers and manuals.
+4. **Projects/workspaces** — what work belongs together.
+5. **Artifacts/evidence** — files, outputs, patches, reports and results.
+6. **Tasks/runs/tool events** — what the agent actually did.
+7. **Skills** — governed reusable procedures.
+8. **Persona/runtime configuration** — SOUL/profile/preferences/runtime settings.
+9. **External execution references** — Slurm job IDs, Kubernetes jobs, QPU jobs and workflow IDs.
+10. **Imported archives** — historical ChatGPT, Claude, DeepSeek and other provider exports.
+11. **Evaluation/provenance** — model/runtime/revision/quality/evaluation results.
+12. **Secrets/credentials** — never conversation, memory or RAG content.
+
+The boundaries are deliberate:
+
+- skills are not memories;
+- projects are not conversations;
+- artifacts are not memories;
+- imports are not memories;
+- runtime-native state is not canonical memory;
+- RAG documents are not memories;
+- credentials are never prompt/history data.
+
+## 5.13 Historical chat import/export
+
+M4a starts with fresh canonical conversations, fresh run history and fresh ACP state.
+
+Historical provider exports should be introduced later as **imported archives**, not automatically promoted into memory.
+
+~~~text
+provider export
+      |
+      v
+immutable/raw import artifact
+      |
+      v
+normalised imported conversation/messages
+      |
+      v
+optional memory candidates
+      |
+policy/provenance/user review
+      |
+      v
+canonical durable memory
+~~~
+
+An import record should retain provider, export format/version, original conversation/message identifiers and timestamps, import checksum, source artifact reference and import status.
+
+This prevents stale architecture, hallucinations, obsolete credentials/configuration references and contradictory historical statements from silently becoming durable memory.
+
+Exports from ACP should use documented portable formats with stable identifiers and provenance.
+
+## 5.14 Vector retrieval progression
+
+The vector-search roadmap is intentionally incremental:
+
+~~~text
+M4a
+conversation continuity
+PostgreSQL only
+NO vector database
+
+        |
+        v
+
+M4b
+canonical durable memory
+PostgreSQL
++
+pgvector as a rebuildable derived retrieval index
+
+        |
+        v
+
+M4c
+projects / knowledge scopes
+pgvector initially
+
+        |
+        v
+
+measured scale threshold
+        |
+        +--> keep pgvector
+        |
+        +--> dedicated vector service
+             Milvus / Qdrant / equivalent
+~~~
+
+A vector index is never the canonical memory store. Embeddings must retain model/revision/dimensions/content-hash metadata and be regenerable from authorised canonical sources.
+
+Move to a dedicated vector service only after measurements demonstrate a real need, such as unacceptable pgvector latency, operationally painful index size, materially higher concurrency, a corpus far larger than ACP relational state, or a need to scale knowledge retrieval independently.

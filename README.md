@@ -30,7 +30,7 @@ ACP deliberately separates these concerns.
 
 ~~~text
 Clients
-Quantum Platform | Jupyter | SSH/TUI | gptel | API | future channels
+Quantum Platform | Jupyter | SSH/TUI | gptel | VS Code Server | API | future channels
                               |
                               v
 +------------------------------------------------------------------+
