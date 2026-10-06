@@ -433,10 +433,8 @@ def claim(conn, settings, revision):
 def claim_personal(conn, settings, revision):
     with scoped(conn, settings.tenant, worker_role="personal"):
         row = conn.execute(
-            "SELECT r.id,r.task_id,t.requested_by,t.conversation_id,t.input_message_id,"
-            "m.sequence AS input_sequence "
+            "SELECT r.id,r.task_id,t.requested_by,t.conversation_id,t.input_message_id "
             "FROM acp1.run r JOIN acp1.task t ON t.id=r.task_id "
-            "JOIN acp1.message m ON m.id=t.input_message_id "
             "WHERE t.kind='personal_turn' AND r.status='queued' "
             "ORDER BY t.created_at,t.id FOR UPDATE OF r SKIP LOCKED LIMIT 1"
         ).fetchone()
@@ -451,7 +449,7 @@ def claim_personal(conn, settings, revision):
 
 
 def hydrate_personal_context(conn, tenant, run):
-    with scoped(conn, tenant, worker_role="personal"):
+    with scoped(conn, tenant, run["requested_by"]):
         conversation = conn.execute(
             "SELECT id,project_id,title,owner_subject FROM acp1.conversation "
             "WHERE id=%s AND owner_subject=%s",
@@ -459,16 +457,22 @@ def hydrate_personal_context(conn, tenant, run):
         ).fetchone()
         if conversation is None:
             raise RuntimeError("Personal conversation is unavailable")
+        input_message = conn.execute(
+            "SELECT sequence FROM acp1.message WHERE id=%s AND conversation_id=%s",
+            (run["input_message_id"], run["conversation_id"]),
+        ).fetchone()
+        if input_message is None:
+            raise RuntimeError("Personal input message is unavailable")
         messages = conn.execute(
             "SELECT id,sequence,author_kind,content,source_channel,created_at "
             "FROM acp1.message WHERE conversation_id=%s AND sequence<=%s ORDER BY sequence",
-            (run["conversation_id"], run["input_sequence"]),
+            (run["conversation_id"], input_message["sequence"]),
         ).fetchall()
         return {"conversation": conversation, "messages": messages}
 
 
 def finish_personal(conn, tenant, run, response, *, failure=None):
-    with scoped(conn, tenant, worker_role="personal"):
+    with scoped(conn, tenant, run["requested_by"]):
         status = "failed" if failure else "succeeded"
         changed = conn.execute(
             "UPDATE acp1.run SET status=%s,summary=%s,failure_code=%s,finished_at=now() "
