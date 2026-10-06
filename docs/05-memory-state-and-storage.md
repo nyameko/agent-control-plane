@@ -1,122 +1,168 @@
 # 5. Memory, state and storage
 
-## 5.1 The core distinction
+## 5.1 The governing rule
 
-“Memory” is not one database or one mounted directory. The platform needs several state classes
-with different retention, portability, consistency and security requirements.
+Every state class needs one canonical owner.
 
-| State | Canonical store | Examples | Backup/retention |
-| --- | --- | --- | --- |
-| relational control state | PostgreSQL | conversations, messages, tasks, runs, approvals, routing decisions, jobs, audit indices | PITR, explicit retention |
-| mutable runtime profile | Cinder-backed PVC | Hermes config, runtime session cache, local skills, runtime checkpoints | encrypted volume snapshot; not sole system record |
-| workspace | per-user/project PVC or ephemeral volume | Git worktrees, notebooks, temporary datasets, build caches | quota; snapshot only when valuable |
-| large immutable artifact | S3-compatible/object store when available; transitional Cinder service volume | logs, attachments, patches, reports, model outputs, scientific artifacts | digest, lifecycle policy, legal retention |
-| declarative shared definition | Git | agent templates, `SOUL` sources, reviewed skills, policies, schemas, evals | normal Git history/review |
-| embeddings/index | PostgreSQL + pgvector initially | derived retrieval vectors and chunk metadata | rebuildable from authorised sources |
-| secret | Vault/KMS/HSM eventually; encrypted broker now | provider tokens, bot tokens, wrapping keys | rotation and access audit; never model context |
-| operational telemetry | Prometheus/log/trace backend | latency, queue depth, token/compute usage | bounded operational retention |
+ACP owns **canonical agent context**. Runtime-native databases, caches and checkpoints are secondary representations.
 
-## 5.2 PostgreSQL placement
+## 5.2 State ownership
 
-The first production deployment can use the same PostgreSQL cluster as `quantum-platform`, but it
-should use a **separate database, role and credential**. Sharing a server is operational reuse;
-sharing every table and database privilege is coupling.
+| State | Canonical owner/store | Notes |
+| --- | --- | --- |
+| human identity, programmes, entitlements | Quantum Platform PostgreSQL | ACP stores stable external subject references |
+| ACP project/conversation/message state | ACP PostgreSQL | canonical cross-client history |
+| ACP memory and skill bindings | ACP PostgreSQL + reviewed Git references | introduced after M4a |
+| tasks/runs/events/approvals/routing decisions | ACP PostgreSQL | durable operational lineage |
+| Hermes/other runtime session/cache/profile | runtime-local persistent or ephemeral storage | accelerates continuity; never sole record |
+| reviewed agent definitions/policies/shared skills | Git | immutable/versioned source |
+| user/project files | research home/project storage | NFS/parallel/object storage as appropriate |
+| large artifacts | object/artifact storage | referenced by digest/URI from ACP |
+| scientific result provenance | quantum-workflows | ACP stores correlation/reference |
+| Slurm/QPU execution state | scheduler/provider | ACP stores external references and observations |
+| embeddings/index | derived store, initially PostgreSQL/pgvector if useful | rebuildable from authorised canonical sources |
+| secrets | secret broker/Sealed Secrets/Vault-class system | never durable prompt/memory content |
+| telemetry | Prometheus/log/trace backends | bounded operational retention |
 
-The control-plane database stores:
+## 5.3 PostgreSQL ownership
 
-- external identity/tenant references, not passwords;
-- canonical cross-client conversation/message history;
-- tasks, attempts, delegations and run state;
-- tool calls and redacted inputs/outputs or artifact references;
-- model and compute routing decisions with reasons;
-- approvals and immutable audit events;
-- channel bindings and user retention preferences;
-- pointers/digests for large artifacts and runtime profiles.
+ACP's database belongs to `agent-control-plane`.
 
-Large binary data, full repository copies, model weights and plaintext credentials do not belong in
-PostgreSQL.
+It may physically share PostgreSQL infrastructure with another service in the future, but logical ownership, roles, migrations and credentials remain separate.
 
-## 5.3 Conversation history is not long-term memory
+ACP PostgreSQL stores:
 
-The canonical message log preserves what was said. Long-term memory is a derived, purpose-specific
-record that may be retrieved in future conversations.
+- stable external identity/tenant references;
+- projects and conversations;
+- messages;
+- memory items and provenance;
+- skill bindings;
+- task/run/delegation history;
+- runtime/session/profile mappings;
+- tool and approval records;
+- model/compute routing decisions;
+- artifact and scheduler references;
+- retention/export metadata.
 
-Promotion flow:
+It does not store:
 
-```text
-message/tool evidence
-       │
-       ▼
-candidate memory + provenance + sensitivity
-       │
- policy / optional user confirmation
-       │
-       ▼
-versioned memory item
-       │
- embedding/index (derived and rebuildable)
-```
+- passwords;
+- raw provider secrets;
+- model weights;
+- full repository mirrors;
+- large binary artifacts when object/project storage is more appropriate.
 
-Deleting or correcting a source must invalidate derived memories and indexes. An agent may propose
-memory; it should not silently convert every private conversation into permanent institutional
-knowledge.
+## 5.4 Conversation history is not memory
 
-## 5.4 Memory layers
+A transcript records what happened.
 
-- **Working memory:** current context and scratchpad; short-lived, runtime-specific.
-- **Episodic memory:** a task/run summary with outcome and evidence.
-- **Semantic memory:** durable facts and relationships with provenance and sensitivity.
-- **Procedural memory:** skills, playbooks and tested workflows.
-- **Identity/preferences:** user-provided preferences, never inferred sensitive attributes without
-  a legitimate purpose.
+Memory is a derived, purpose-specific item that may be retrieved later.
 
-Shared procedural memory is promoted into reviewed Git. User-specific procedural adaptations stay
-private unless the user explicitly shares them.
+M4a implements canonical conversation continuity. M4b adds explicit memory.
 
-## 5.5 Souls and agent definitions
+~~~text
+message / tool evidence / run result
+                 |
+                 v
+          memory candidate
+                 |
+      policy + provenance
+       + optional confirmation
+                 |
+                 v
+         durable memory item
+                 |
+                 v
+          derived retrieval index
+~~~
 
-Treat a soul as versioned behaviour configuration, not a mystical opaque file:
+Deleting/correcting a source must invalidate affected derived state.
 
-```text
-agent definition
-├── purpose and non-goals
-├── base system/SOUL content
-├── capability references
-├── model-pool policy
-├── runtime/harness adapter
-├── skill bundle digests
-├── memory scopes
-└── evaluation suite
-```
+## 5.5 Memory classes
 
-Shared definitions live in Git. At run start the control plane stores the Git revision and a
-content digest. Per-user runtime material is mounted into Hermes from a Cinder PVC, but the durable
-run record references the versioned definition that produced it.
+- **working context** — transient context used for one run;
+- **episodic memory** — durable summary of an experience/task/run;
+- **semantic memory** — durable facts/relationships with provenance;
+- **preferences** — explicit user preferences, not inferred sensitive attributes;
+- **procedural knowledge** — reusable methods/skills, usually governed as skills rather than arbitrary memory.
 
-## 5.6 Hermes state
+A private user's memory must not silently become programme/institutional memory.
 
-Hermes currently keeps configuration, soul, memories, skills, cron, sessions, logs and a SQLite
-state database under its profile directory. Mounting that directory on a Cinder PVC provides
-runtime continuity, but the multi-user platform must not treat one shared SQLite database as its
-canonical conversation service.
+## 5.6 Projects
 
-Use one of two controlled patterns:
+M4a uses only a minimal durable project stub.
 
-1. one isolated Hermes profile/PVC per user, project or agent principal; or
-2. ephemeral Hermes workers hydrated from the control plane and writing canonical events back.
+M4c makes Project a full first-class context linking:
 
-The first is simpler for early persistent personal agents; the second scales better. Both require
-an adapter that maps control-plane task/run IDs to Hermes session IDs.
+- members/roles;
+- repositories;
+- conversations;
+- memory scopes;
+- skills;
+- workspaces/artifacts;
+- workflow and execution history.
 
-## 5.7 Research data and collaboration discovery
+Keeping the M4a representation minimal prevents the first persistence milestone from becoming a workspace-management project.
 
-Research queries, saved searches, literature annotations and collaboration candidates belong to
-the tenant/user's control-plane records and artifact store. The collaboration agent may compare
-only scopes for which sharing is authorised. A match should explain the evidence and allow both
-parties to opt in; it must not expose private proposals or conversations to create a match.
+## 5.7 Skills
 
-## 5.8 Retention and portability
+Skills are versioned procedural definitions with declared authority and provenance.
 
-Users need controls to export, archive and delete conversations and memories subject to legitimate
-audit or research-retention constraints. Export should include portable JSON plus artifact digests,
-not an undocumented copy of a Hermes directory.
+Shared skills should be reviewed in Git when practical. ACP records which version is enabled for which user/project/agent.
+
+Runtime-local skill material may be generated/mounted from those canonical bindings.
+
+## 5.8 Runtime state
+
+Hermes and other frameworks may maintain:
+
+- native sessions;
+- checkpoints;
+- local memories;
+- indexes;
+- profile configuration;
+- caches.
+
+Those are useful.
+
+They are not the portable platform record.
+
+The key failure test is:
+
+> If this runtime profile is destroyed, can ACP reconstruct enough authorised context for the user to continue?
+
+M4a requires the answer to be yes for conversation continuity.
+
+M4e later makes Hermes-native profile persistence richer without reversing that ownership rule.
+
+## 5.9 Cinder and runtime PVCs
+
+A retained Cinder RWO volume protects runtime state from normal Pod replacement. It does not create a shared multi-client database, and it is not a backup.
+
+Portal, Jupyter, SSH and runtime workers should share history through authenticated ACP APIs, not by mounting the same block volume everywhere.
+
+## 5.10 Artifacts and research files
+
+ACP should store metadata/digests and references rather than force large artifacts into relational tables.
+
+Use:
+
+- project/research storage for working datasets/files;
+- object/artifact storage for immutable large outputs;
+- Git for source and reviewed declarative definitions;
+- quantum-workflows manifests for reproducible scientific outputs.
+
+## 5.11 Retention, export and deletion
+
+Durable does not mean immortal.
+
+Users need explicit:
+
+- archive;
+- export;
+- delete;
+- correction;
+- memory invalidation;
+- retention policy.
+
+Exports should use portable documented formats rather than dumping an opaque runtime profile directory.
