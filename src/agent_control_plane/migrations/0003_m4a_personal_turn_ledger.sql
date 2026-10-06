@@ -44,10 +44,24 @@ CREATE UNIQUE INDEX task_personal_input_unique
     WHERE kind = 'personal_turn';
 
 ALTER TABLE acp1.run
+    DROP CONSTRAINT IF EXISTS run_check,
     DROP CONSTRAINT IF EXISTS run_profile_check;
 ALTER TABLE acp1.run
     ADD CONSTRAINT run_profile_check
-        CHECK (profile IN ('admin-readonly', 'personal-general'));
+        CHECK (profile IN ('admin-readonly', 'personal-general')),
+    ADD CONSTRAINT run_success_payload_check
+        CHECK (
+            status <> 'succeeded'
+            OR (
+                profile = 'admin-readonly'
+                AND summary IS NOT NULL
+                AND evidence IS NOT NULL
+            )
+            OR (
+                profile = 'personal-general'
+                AND summary IS NOT NULL
+            )
+        );
 
 ALTER TABLE acp1.message
     ADD COLUMN run_id uuid,
