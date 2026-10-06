@@ -131,3 +131,109 @@ def test_pinned_sdk_empty_tools_and_persistent_session(tmp_path, monkeypatch):
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+@pytest.mark.skipif(
+    not os.getenv("ACP_TEST_HERMES"), reason="Set ACP_TEST_HERMES=1 with pinned SDK"
+)
+def test_personal_runtime_hydrates_canonical_transcript_with_no_tools(tmp_path, monkeypatch):
+    from agent_control_plane.personal_runtime import respond
+    from agent_control_plane.personal_worker import PROFILE_CONFIG
+
+    calls = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            calls.append(body)
+            chunks = [
+                {
+                    "id": "fixture",
+                    "object": "chat.completion.chunk",
+                    "created": 1,
+                    "model": "test-model",
+                    "choices": [
+                        {
+                            "index": 0,
+                            "finish_reason": None,
+                            "delta": {
+                                "role": "assistant",
+                                "content": "The marker was ACP-PERSIST-7F31.",
+                            },
+                        }
+                    ],
+                },
+                {
+                    "id": "fixture",
+                    "object": "chat.completion.chunk",
+                    "created": 1,
+                    "model": "test-model",
+                    "choices": [
+                        {"index": 0, "finish_reason": "stop", "delta": {}}
+                    ],
+                },
+            ]
+            payload = (
+                "".join("data: " + json.dumps(chunk) + "\n\n" for chunk in chunks)
+                + "data: [DONE]\n\n"
+            ).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    monkeypatch.setenv("HERMES_ENABLE_PROJECT_PLUGINS", "0")
+    monkeypatch.setenv("ACP_MODEL", "test-model")
+    monkeypatch.setenv("ACP_MODEL_API_KEY", "local-fixture-only")
+    monkeypatch.setenv(
+        "ACP_MODEL_BASE_URL",
+        f"http://127.0.0.1:{server.server_port}/v1",
+    )
+    monkeypatch.setenv("ACP_RUN_TIMEOUT_SECONDS", "30")
+    (tmp_path / "config.yaml").write_text(PROFILE_CONFIG)
+
+    context = {
+        "conversation": {
+            "id": str(uuid4()),
+            "project_id": str(uuid4()),
+            "title": "Persistence Drill",
+        },
+        "messages": [
+            {
+                "sequence": 1,
+                "author_kind": "user",
+                "content": {"text": "Remember ACP-PERSIST-7F31"},
+            },
+            {
+                "sequence": 2,
+                "author_kind": "assistant",
+                "content": {"text": "I will keep that in this conversation."},
+            },
+            {
+                "sequence": 3,
+                "author_kind": "user",
+                "content": {"text": "What marker did I give you earlier?"},
+            },
+        ],
+    }
+
+    try:
+        response = respond(context, "acp-" + str(uuid4()))
+        assert response == "The marker was ACP-PERSIST-7F31."
+        assert calls
+        assert all(not call.get("tools") for call in calls)
+        rendered = json.dumps(calls)
+        assert "ACP-PERSIST-7F31" in rendered
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
