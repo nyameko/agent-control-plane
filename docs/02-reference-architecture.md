@@ -1,104 +1,234 @@
 # 2. Reference architecture
 
-## 2.1 Logical architecture
+## 2.1 Architectural statement
 
-```text
-┌──────────────────────────── Human and system clients ─────────────────────────────┐
-│ quantum.nyameko.com │ JupyterLab │ Spacemacs/gptel │ Telegram │ Discord │ API    │
-└──────────────────────────────────────┬────────────────────────────────────────────┘
-                                       │ authenticated request / stream
-                                       ▼
-┌──────────────────────────── Agent control plane ──────────────────────────────────┐
-│ API gateway │ identity context │ conversations │ policy │ approvals │ audit       │
-│ task service │ planner/router │ delegation graph │ memory service │ event outbox  │
-└───────────────┬─────────────────────────┬────────────────────────┬─────────────────┘
-                │                         │                        │
-                ▼                         ▼                        ▼
-       runtime adapters           model gateway             execution broker
-   Hermes │ direct model │    logical model pools      logical execution classes
-   experimental harnesses      │       │       │        │        │        │
-                │            Ollama  vLLM  llama.cpp  OpenStack  K8s    Slurm/QRMI
-                │                                       sandbox   jobs    CPU/GPU/QPU
-                └───────────────────────── events/results ──────────────────────────┘
-                                       │
-                                       ▼
-┌──────────────────────────────── State plane ──────────────────────────────────────┐
-│ PostgreSQL │ Cinder PVCs │ object/artifact store │ Git │ secrets broker │ metrics │
-└───────────────────────────────────────────────────────────────────────────────────┘
-```
+ACP is the **durable context, policy and coordination plane** between user-facing clients and replaceable agent/model/execution systems.
 
-## 2.2 Components
+It is deliberately positioned above runtimes and below product surfaces.
 
-| Component | Responsibility | Explicitly does not own |
-| --- | --- | --- |
-| API gateway | authenticated task/conversation API, streaming, idempotency | user passwords, bot platform credentials |
-| Conversation service | canonical conversation/message history and channel continuity | model-specific scratch state |
-| Policy decision point | capabilities, sensitivity, tenancy, approval and egress decisions | Kubernetes or Slurm placement |
-| Planner/router | chooses logical agent, runtime, model pool and execution class | physical GPU/node selection |
-| Runtime adapter | translates portable tasks/events to Hermes or another harness | global identity or policy |
-| Model gateway | logical model names, rate/usage limits, health/fallback | tool execution |
-| Execution broker | creates signed, bounded requests for a sandbox, K8s job or Slurm job | scheduling algorithms owned by those systems |
-| Memory service | retrieval and promotion of authorised long-term context | automatic retention of every message forever |
-| Approval service | exact plan digest, approver, expiry and outcome | applying the approved action itself |
-| Audit service | append-only security and operational event history | high-cardinality monitoring dashboards |
+~~~text
++---------------------------- CLIENTS --------------------------------+
+| Quantum Platform | Jupyter | SSH/TUI | gptel | API | future chat    |
++--------------------------------+------------------------------------+
+                                 |
+                    authenticated delegated identity
+                                 |
+                                 v
++---------------------- AGENT CONTROL PLANE --------------------------+
+| identity context | tenancy | policy | approvals                     |
+| projects | conversations | memory | skills                          |
+| tasks | runs | events | audit | artifacts/references                |
+| runtime selection | logical model pools | execution contracts       |
++---------+----------------------+----------------------+--------------+
+          |                      |                      |
+          v                      v                      v
+   meta/orchestration      runtime adapters      execution brokers
+      Paperclip             Hermes               Kubernetes
+      later strategies      LangGraph            OpenStack
+                            Letta                Slurm
+                            PydanticAI           quantum-workflows
+                            Agent Framework      QPU/provider
+                            OpenHands
+                            Goose / smolagents
+          |                      |
+          +----------+-----------+
+                     |
+                     v
+                 model gateway
+             vLLM | Ollama | llama.cpp
+                     |
+                     v
+           open weights / authorised APIs
 
-## 2.3 A request end to end
++----------------------------- STATE ---------------------------------+
+| ACP PostgreSQL | runtime PVC/cache | Git | project/artifact storage |
+| secret broker  | metrics/logs/traces | scheduler/provider records  |
++--------------------------------------------------------------------+
+~~~
 
-1. A client obtains the user's established `quantum-platform` session or a short-lived delegated
-   token.
-2. The control plane resolves subject, tenant/programme, channel, sensitivity and allowed
-   capabilities.
-3. A task record is created before model execution so failure remains visible.
-4. The deterministic policy layer constrains candidate agents, models, tools and execution classes.
-5. A planner may rank the remaining candidates. The selected plan and reasons are persisted.
-6. A runtime adapter starts or resumes an agent session using the exact agent-definition digest.
-7. Tool requests return to the policy layer. The runtime never obtains a generic privileged shell.
-8. Read-only calls may execute directly. Mutations pause on an exact approval request.
-9. Approved execution is submitted to the appropriate authoritative system.
-10. Events stream to every attached client; results and artifacts are persisted by type.
-11. A final response links evidence, tests, job IDs, artifacts and unresolved risks.
+## 2.2 The three planes
 
-## 2.4 Administrative root outside the managed cluster
+### Product/client plane
 
-The existing isolated `hermes-orchestrator` VM remains valuable as an out-of-band federation and
-reporting root. A Kubernetes failure must not erase the only path used to diagnose Kubernetes.
+Quantum Platform, Jupyter, editor integrations and terminal clients present the user's work. They do not own canonical agent state.
 
-That VM should run a narrowly scoped administrative Hermes profile and control-plane client. The
-multi-user API, conversations, channel adapters and ordinary research agents run inside Kubernetes.
-The out-of-band root consumes replicated status and can request bounded recovery workflows; it is
-not a second source of user conversation truth.
+### Agent control plane
 
-## 2.5 Availability and failure domains
+ACP owns the portable records required to reconstruct authorised context and coordinate agent work.
 
-- If H200 inference is unavailable, the router may fall back only to a pool permitted by policy.
-- If the agent runtime fails, the canonical task/run state remains in PostgreSQL.
-- If PostgreSQL is unavailable, new stateful work stops rather than silently becoming anonymous.
-- If Kubernetes is unavailable, the isolated administrative root still reports infrastructure
-  health, but normal multi-user sessions degrade.
-- If Telegram or Discord is unavailable, web/Jupyter/gptel conversations continue unchanged.
-- If an execution worker dies, its lease expires and the broker reconciles the job idempotently.
+### Execution/resource plane
 
-## 2.6 Initial deployment topology
+Runtimes, model servers, sandboxes, Kubernetes, Slurm and QPU providers execute work. They retain their own authoritative local state where appropriate, but ACP records references and provenance.
 
-```text
-isolated OpenStack VM
-└── administrative Hermes federation root
+## 2.3 Canonical state
 
+The canonical ACP record includes, as milestones mature:
+
+- external principal/tenant references;
+- minimal and later rich projects;
+- conversations and messages;
+- memory items and provenance;
+- skill bindings and versions;
+- tasks, runs, events and delegation lineage;
+- approvals;
+- runtime/profile/session mappings;
+- model-routing decisions;
+- artifact references;
+- external execution references.
+
+Canonical does not mean ACP duplicates every external system.
+
+For example, ACP stores a Slurm job ID and status observations; Slurm remains authoritative for the job.
+
+## 2.4 Portable context assembly
+
+The core abstraction is not a Hermes session or a model-provider conversation ID. It is a portable run context:
+
+~~~text
+AgentRunContext
+├── principal
+│   ├── AgentPrincipal subject
+│   ├── tenant / programme
+│   └── delegated capabilities
+├── project context
+├── conversation messages
+├── retrieved memory items
+├── enabled skill definitions
+├── task/run history summary
+├── runtime policy
+├── logical model pool
+├── execution allowances
+└── correlation identifiers
+~~~
+
+The runtime adapter translates this into the native representation required by Hermes, Letta, LangGraph, Agent Framework, OpenHands or another runtime.
+
+The result is normalised back into ACP records.
+
+## 2.5 Normalised runtime contract
+
+A runtime adapter should eventually expose operations equivalent to:
+
+~~~text
+capabilities()
+start(context)
+resume(context, runtime_reference)
+send(input)
+stream_events()
+request_tool()
+pause_for_approval()
+stop()
+health()
+version()
+export_runtime_metadata()
+~~~
+
+Portable state belongs in ACP. Runtime-specific details remain namespaced metadata.
+
+## 2.6 Request lifecycle
+
+A mature request follows this path:
+
+1. A client authenticates through Quantum Platform or an approved delegated flow.
+2. ACP validates principal, tenant/programme and requested capability.
+3. ACP loads the canonical project/conversation state.
+4. ACP retrieves only authorised memory and skill context.
+5. Policy produces the candidate runtime, model-pool and execution envelope.
+6. An optional meta-orchestrator such as Paperclip chooses among allowed specialists.
+7. The runtime adapter receives a bounded AgentRunContext.
+8. The runtime reasons and emits normalised events/tool requests.
+9. Every privileged tool request is re-authorised at the boundary.
+10. Heavy work is submitted to the authoritative execution system.
+11. Final messages, events, routing decisions and external references are committed to ACP.
+12. Scientific results remain in quantum-workflows/artifact storage and are linked by provenance.
+
+## 2.7 Failure semantics
+
+A central architectural requirement is that ordinary process loss does not imply context loss.
+
+~~~text
+browser dies              -> reconnect
+Jupyter Pod is culled      -> reconnect
+SSH session disconnects   -> reconnect
+ACP API restarts          -> reload PostgreSQL
+agent worker restarts     -> reconstruct context
+Hermes session disappears -> start a replacement runtime session
+model endpoint fails      -> policy-valid fallback or explicit failure
+Slurm controller owns job -> ACP reconciles by external job reference
+~~~
+
+If PostgreSQL containing canonical ACP state is unavailable, new stateful work stops rather than silently falling back to anonymous runtime-local history.
+
+## 2.8 State versus cache
+
+A useful test is:
+
+> Could we delete this runtime/Pod/client and still reconstruct the user's authorised work?
+
+If the answer is no, the supposedly replaceable component owns state that has not yet been promoted into the proper canonical system.
+
+## 2.9 Identity boundary
+
+Quantum Platform is authoritative for human identity.
+
+ACP consumes an immutable AgentPrincipal UUID as its stable subject. POSIX UID/GID, usernames and email addresses are linked attributes, not the ACP identity key.
+
+This allows:
+
+- UID/GID policy changes;
+- federation;
+- username changes;
+- multiple execution environments;
+- runtime replacement;
+
+without changing ownership of agent state.
+
+## 2.10 Meta-orchestration boundary
+
+Paperclip or another meta-harness can coordinate specialists, but it does not own:
+
+- user identity;
+- canonical conversation history;
+- memory;
+- skill grants;
+- approvals;
+- platform capabilities;
+- scheduler authority.
+
+This keeps meta-orchestration replaceable too.
+
+## 2.11 Initial and future deployment
+
+Today the repository has a narrow administrative API/worker/PostgreSQL/Hermes slice.
+
+M4 adds the personal-agent continuity path.
+
+Later deployment may contain:
+
+~~~text
 Kubernetes namespace: agent-control-plane
-├── API / policy / routing replicas
-├── worker replicas
-├── Hermes runtime profiles
-├── Telegram adapter
-├── Discord adapter
+├── API replicas
+├── policy/context services
+├── worker/runtime adapter pools
+├── optional Paperclip coordinator
+├── model gateway client
 └── network policies
 
-PostgreSQL
-└── separate database and credential for agent-control-plane
+ACP PostgreSQL
+├── canonical conversations
+├── memory/projects/skills
+├── tasks/runs/events
+└── runtime/execution references
 
-Cinder
-├── runtime profile PVCs
-└── per-user or per-project workspaces where justified
+Retained runtime storage
+└── optional per-user/project runtime profiles
 
-Slurm / OpenStack
-└── execution targets reached only through brokers
-```
+External execution
+├── Kubernetes Jobs
+├── OpenStack sandboxes
+├── Slurm CPU/GPU
+├── quantum-workflows
+└── QPU/provider brokers
+~~~
+
+The isolated administrative/orchestrator VM can remain an out-of-band diagnostic/federation root. It must not become a second canonical conversation database.

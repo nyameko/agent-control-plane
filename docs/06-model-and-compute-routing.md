@@ -1,118 +1,157 @@
 # 6. Model and compute routing
 
-## 6.1 Two independent placement decisions
+## 6.1 Keep four decisions separate
 
-Every non-trivial task may need two routes:
+A task may involve four independent choices:
 
-1. **Inference route:** which model and serving runtime produce reasoning/tool calls?
-2. **Execution route:** where do tools, builds, tests or scientific jobs execute?
+1. which specialist/agent should work on it;
+2. which runtime/harness should host that agent;
+3. which model/inference service should provide reasoning;
+4. where external code/scientific execution should run.
 
 Example:
 
-```text
-Hermes agent:          small Kubernetes pod
-inference:             large model served by vLLM on H200
-repository sandbox:    ephemeral 64-vCPU OpenStack VM
-scientific stage:      Slurm A100/H200 allocation
-QPU stage:             Slurm + QRMI/QDMI/provider adapter
-```
+~~~text
+specialist            research/coding agent
+runtime               Hermes or OpenHands
+inference             reasoning model served by vLLM on H200
+build/test sandbox    64-vCPU OpenStack worker
+scientific execution  Slurm H200 allocation
+QPU stage             provider/QRMI/QDMI broker
+~~~
 
-GPU inference capacity and user workload capacity should have separate quotas and telemetry even
-when they share hardware.
+Do not collapse these into one "agent location".
 
 ## 6.2 Logical model pools
 
-Clients and agents ask for service classes such as:
+Clients and agent definitions request capabilities rather than immutable model names.
 
-- `general-fast`;
-- `general-private`;
-- `code-interactive`;
-- `reasoning-deep`;
-- `reasoning-private`;
-- `embedding-private`.
+Suggested pools:
 
-The model gateway maps them to a reviewed model/runtime deployment. Model names and hardware may
-change without rewriting gptel presets or agent definitions.
+- `fast-local`
+- `general-balanced`
+- `deep-reasoning`
+- `coding`
+- `vision`
+- `long-context`
+- `research`
+- `restricted-local`
+- `embedding-private`
 
-Routing inputs include:
+The model gateway resolves a pool to a reviewed model + inference runtime + endpoint.
 
-- task/domain and required tool-use capability;
-- quality target and latency deadline;
-- context length and expected output;
-- sensitivity, data residency and external-provider permission;
-- current queue, health and available KV-cache capacity;
-- measured performance on relevant evaluations;
-- energy/token/compute budget and tenant quota.
+Changing the resolved model must not change principal/project/conversation identity.
 
-The router must record the chosen pool, resolved model/runtime, policy constraints, fallbacks and
-reason codes.
+## 6.3 Open-weight and provider flexibility
 
-## 6.3 Serving runtime roles
+The architecture should remain compatible with changing open/open-weight families such as Qwen, DeepSeek, Mistral/Devstral, gpt-oss and future models.
 
-| Runtime | Recommended role |
+The exact best model is deliberately not encoded in ACP's data model.
+
+External providers may be allowed for explicitly authorised workloads. Private/restricted data should fail closed rather than silently route externally.
+
+## 6.4 Inference runtimes
+
+| Runtime | Likely role |
 | --- | --- |
-| Ollama | workstation, development, rapid model trials, low-concurrency services |
-| llama.cpp | CPU/edge deployments, quantised models, efficient specialised serving |
-| vLLM | production A100/H200 throughput, batching and multi-GPU serving |
-| external API | explicit opt-in fallback or evaluation where policy allows |
+| Ollama | workstation/dev/small specialist services |
+| llama.cpp | CPU/edge/quantised specialist serving |
+| vLLM | production A100/H200 throughput and batching |
+| future compatible server | allowed behind the same logical model-gateway contract |
 
-A gateway such as LiteLLM can provide one OpenAI-compatible endpoint, authentication, budgets,
-fallbacks and usage accounting. It is a model gateway, not the task orchestrator or policy source.
+A model gateway can provide authentication, quotas and routing. It is not the agent task authority.
 
-## 6.4 Logical execution classes
+## 6.5 Meta-orchestration and runtime selection
 
-Agents request capability/resource envelopes, never hostnames:
+Later, Paperclip can choose among allowed specialists/harnesses.
 
-| Class | Use |
-| --- | --- |
-| `none` | conversation/reasoning only |
-| `sandbox-cpu-standard` | isolated repo analysis, lint, small tests |
-| `sandbox-cpu-large` | compilation, larger CPU tests, local emulation |
-| `kubernetes-job` | bounded asynchronous service work |
-| `slurm-a100` | single-GPU development/evaluation |
-| `slurm-h200` | large-model or large-memory simulation |
-| `slurm-multinode` | MPI/distributed workloads |
-| `slurm-qpu-*` | scheduler-mediated QPU job |
+ACP supplies the candidate set based on:
 
-The execution broker translates the envelope to an OpenStack request, Kubernetes Job or `sbatch`
-specification. The target scheduler makes physical placement decisions.
+- subject/tenant;
+- capability;
+- privacy/sensitivity;
+- task family;
+- runtime health;
+- model compatibility;
+- budgets/quotas;
+- evaluation history.
 
-## 6.5 A100, H200 and CPU policy
+Paperclip or another orchestrator may rank/coordinate candidates but cannot expand authority beyond policy.
 
-- 32/64-vCPU VMs run the control plane, CPU sandboxes, static analysis, build/test workers and
-  modest models where practical.
-- A100 serves interactive coding/general pools, embeddings, reranking, evaluations and medium
-  simulation.
-- H200 serves large/deep models, long context, high concurrency and high-memory simulation.
-- Slurm owns large or multi-node scientific execution; Kubernetes owns durable services and
-  bounded service jobs.
-- The H200 is not the default simply because it is the most powerful resource. Measured quality
-  gain must justify queue, energy and opportunity cost.
+## 6.6 Logical execution offerings
 
-## 6.6 Routing evolution
+Agents should request platform-visible logical execution offerings, not hostnames or secret partition implementation details.
 
-### V0.1 — deterministic policy
+Examples:
 
-The code in this repository produces an explainable logical plan from explicit request fields.
+- `cpu-small`
+- `qiskit-aer-large`
+- `h200-accelerated`
+- `sandbox-cpu-standard`
+- `sandbox-cpu-large`
+- `quantum-provider:<capability>`
 
-### V0.2 — telemetry-aware selection
+The authoritative execution layer maps those offerings to Slurm/Kubernetes/OpenStack/provider specifics.
 
-Resolve healthy deployments using queue depth, latency, context capacity and quotas.
+## 6.7 Inference versus scientific execution
 
-### V0.3 — evaluation-aware routing
+Inference resources and user scientific resources need independent quotas and accounting.
 
-Use model/harness success rates by task family, but keep hard policy constraints outside the model.
+A small ACP worker can:
 
-### V0.4 — learned ranking with guardrails
+- reason through a model hosted on H200;
+- submit a CPU scientific job;
+- later submit a QPU stage;
 
-A learned router may rank candidates. It cannot expand the candidate set beyond policy or directly
-name physical production nodes.
+without holding all those resources simultaneously.
 
-## 6.7 Scheduling anti-patterns
+Do not reserve scarce GPU capacity while waiting on a remote QPU queue.
 
-- do not let an LLM reimplement Slurm priority/backfill;
-- do not reserve H200s while waiting in a public QPU queue;
-- do not place user scientific jobs in the model-serving deployment;
-- do not use Prometheus high-cardinality labels for task/run IDs;
-- do not silently fall back from a private model to an external API;
-- do not report “best model” without task-specific evaluation evidence.
+## 6.8 A100/H200 journey
+
+After M4:
+
+~~~text
+A100 / H200 serving pools
+        |
+        v
+logical model gateway
+        |
+        v
+health / quotas / evaluation
+        |
+        v
+routing reasons recorded in ACP
+~~~
+
+The most powerful accelerator is not automatically the default.
+
+Use measured quality, context needs, latency, concurrency and cost/energy opportunity cost.
+
+## 6.9 Routing evolution
+
+### Deterministic
+
+Explicit model/runtime/execution policy.
+
+### Telemetry-aware
+
+Health, queue depth, latency, context capacity, quotas.
+
+### Evaluation-aware
+
+Measured success by task family and runtime/model combination.
+
+### Learned ranking
+
+A learned/meta router may rank candidates, but hard privacy/capability/resource policy defines the candidate set.
+
+## 6.10 Anti-patterns
+
+- hard-code one model family into every agent definition;
+- let an LLM choose unrestricted physical nodes;
+- let Kubernetes and Slurm allocate the same GPUs independently;
+- silently fall back from local/private to external inference;
+- equate parameter count with task quality;
+- let the meta-orchestrator become the canonical state database;
+- let model-serving failures erase conversations.

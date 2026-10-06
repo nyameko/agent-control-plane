@@ -1,95 +1,211 @@
-# 1. Vision and principles
+# 1. Vision, objectives and guiding principles
 
-## 1.1 From chatbot to virtual organisation
+## 1.1 Vision
 
-The long-term system is a self-hosted virtual engineering and research organisation. A user should
-be able to ask for help from the portal, a notebook, Spacemacs, Telegram or Discord and encounter
-the same identity, conversation and research context. Behind that surface, work can be delegated to
-specialists with different tools, models, security scopes and compute.
+Agent Control Plane is the durable coordination layer for a self-hosted virtual research and engineering organisation whose compute fabric ranges from a researcher's workstation to Kubernetes, Slurm, accelerated GPU systems and eventually QPUs.
 
-The useful organisational analogy is:
+The project is not primarily about building a better chatbot.
 
-```text
-executive control plane
-    ├── infrastructure department
-    ├── research department
-    ├── security operations
-    ├── education/tutoring
-    └── community and collaboration
-```
+It is about preserving **research continuity and authority** while intelligence and compute remain heterogeneous and replaceable.
 
-The analogy stops at authority. Agents are software principals operating under machine-enforced
-policy. They are not employees who may improvise access because a task sounds important.
+A researcher should be able to:
 
-## 1.2 Three forms of hierarchy
+- begin a project in Quantum Platform;
+- continue the same conversation in Jupyter;
+- attach from SSH or an editor;
+- use a different agent runtime for a coding task;
+- move inference from a local model to an A100/H200 service;
+- submit heavy work to Slurm;
+- submit quantum work through an authorised provider path;
+- return later and still have the same project, context, provenance and policy boundary.
 
-Do not collapse these hierarchies:
+That continuity is the product.
 
-1. **Administrative authority** — platform administrators, PIs, programme admins, researchers,
-   students and service principals.
-2. **Agent delegation** — executive orchestrator, department orchestrators and specialists.
-3. **Compute scheduling** — model serving pools, sandboxes, Kubernetes jobs, Slurm allocations and
-   QPU brokers.
+## 1.2 The problem ACP solves
 
-An administrative superuser may ask the executive orchestrator to investigate everything. That
-does not mean every specialist inherits superuser credentials, and it does not mean the resulting
-work bypasses Git review or scheduler policy.
+Without a control plane, state tends to become trapped in the component that happened to create it:
 
-## 1.3 The superuser control plane
+~~~text
+browser chat history
+Hermes profile database
+editor buffer
+notebook filesystem
+coding-agent session
+model-provider conversation ID
+shell history
+~~~
 
-Nyameko's administrative view should provide:
+Those are useful local representations, but they are poor foundations for a long-lived multi-user research platform.
 
-- cross-tenant operational visibility where policy permits;
-- agent/run/task lineage and the delegation tree;
-- model, token and compute utilisation;
-- pending approvals and blocked actions;
-- security and reliability summaries;
-- the ability to stop, steer, quarantine or revoke an agent principal;
-- policy and agent-definition version history.
+ACP separates durable platform context from replaceable execution machinery.
 
-It should not provide one shared shell with every credential loaded. Oversight is safer when it is
-implemented as scoped queries and approvals rather than universal ambient access.
+## 1.3 Objectives
 
-## 1.4 Philosophical principles
+ACP should make the following properties true.
 
-### Human sovereignty
+### Durable continuity
 
-The user owns the objective, identity, data and final high-impact decision. Automation should make
-intent easier to carry out, not make human intent irrelevant.
+Projects, conversations, memory, skills and run history survive ordinary client, Pod, process and runtime replacement.
+
+### Runtime independence
+
+Hermes is the first runtime adapter, not the permanent data model. Other runtimes and harnesses can be introduced without migrating the user's canonical history.
+
+### Model independence
+
+Agent definitions refer to logical model capabilities. The platform may change weights, serving runtimes or providers without changing user/project identity.
+
+### Execution independence
+
+A conversation can request bounded work without knowing which physical node performs it. Kubernetes, OpenStack, Slurm and QPU providers remain authoritative schedulers.
+
+### Explicit authority
+
+Humans, agents, tools, runtimes and schedulers each have explicit scopes. Delegation never silently amplifies privilege.
+
+### Reproducibility
+
+Operational decisions, code changes and scientific results retain enough evidence to reconstruct what happened and why.
+
+### Portability and openness
+
+The architecture favours open interfaces, self-hostable components and open-weight models while avoiding assumptions that prevent authorised external integrations.
+
+### Educational value
+
+The platform should expose its architecture, failures, acceptance tests and trade-offs clearly enough to teach students and researchers how heterogeneous research infrastructure actually works.
+
+## 1.4 Guiding principles
+
+### One canonical owner per state class
+
+A state item may have replicas, caches and runtime-local forms, but one system must be authoritative.
+
+Examples:
+
+~~~text
+human identity            -> Quantum Platform
+agent conversation        -> ACP
+agent memory              -> ACP
+Hermes runtime cache      -> Hermes profile
+scientific result         -> quantum-workflows
+Slurm job state           -> Slurm
+Git source                -> Git repository
+~~~
+
+### Context is more durable than intelligence
+
+Models improve rapidly. Agent frameworks change rapidly. User projects should not have to.
+
+ACP therefore treats model and runtime selection as execution metadata rather than the identity of a conversation.
+
+### Policy is deterministic at the trust boundary
+
+An LLM may recommend an action. It may not decide that it has permission to perform the action.
+
+Identity, tenancy, capability, egress, secret, approval and scheduler policy are enforced outside model reasoning.
+
+### The smallest reliable vertical slice wins
+
+Avoid adding a new framework merely because it exists. Add a component when it solves a measured problem and can pass a failure/recovery test.
+
+This principle directly governs M4a.
+
+### Durable does not mean permanent
+
+Users need retention, archive, export, correction and deletion semantics. Audit or research-retention obligations should be explicit exceptions rather than accidental immortality.
+
+### Runtime-native features are accelerators, not authorities
+
+If Letta, Hermes, LangGraph, Agent Framework or another runtime has memory or checkpointing, ACP may exploit it. The portable platform record remains independent.
+
+### Strong boundaries make experimentation easier
+
+A strict adapter boundary makes it safer to experiment with new models, model modifications, harnesses and orchestration strategies because replacing them does not threaten canonical state.
+
+### Human sovereignty for high-impact actions
+
+The user owns the objective. High-impact mutations require explicit capability and approval. Autonomy is expanded only after reversible lower-risk paths have earned trust.
 
 ### Evidence before confidence
 
-An agent reports the sources, tool output, tests, resource measurements and policy decisions that
-support a result. Confidence without inspectable evidence is not an operational control.
+Useful output links to the evidence that produced it: tool calls, tests, model/runtime revisions, workflow manifests, scheduler IDs, artifacts and unresolved uncertainty.
 
-### Capability before personality
+### Failure is part of the design
 
-A `SOUL.md` or system prompt can shape behaviour. Security comes from capabilities, isolated
-credentials, sandboxing and independent enforcement. A trustworthy personality is not an IAM
-policy.
+Processes die. Pods move. models become unavailable. networks partition. credentials rotate.
 
-### Reversibility
-
-Prefer proposed diffs, branches, snapshots, immutable artifacts and declarative reconciliation.
-Changes should have an identified rollback before approval.
-
-### Learning and teaching
-
-Consistent with the existing infrastructure tutorials, UY activation model and SCC material,
-failures, routing choices, acceptance tests and trade-offs are part of the educational product.
+The architecture should make those events ordinary recovery paths, not data-loss events.
 
 ### African research capability
 
-The system should lower the distance between a learner, a researcher and serious heterogeneous
-compute. It should support modest local environments and scale to national HPC/GPU/QPU resources
-without making either end a second-class path.
+The platform should lower the barrier between learners, researchers and advanced heterogeneous computing resources while preserving local ownership, open skills development and the ability to operate within South African and African research infrastructure.
 
-## 1.5 What the project is not
+## 1.5 Three independent hierarchies
 
-- not a new Kubernetes, Slurm or OpenStack scheduler;
-- not a model server;
-- not a replacement for `quantum-platform` identity and user experience;
-- not a home for scientific algorithms that belong in `quantum-workflows`;
-- not a GitOps repository for production manifests;
-- not one enormous prompt containing the entire organisation;
-- not a licence for unsupervised production mutation.
+Do not collapse:
+
+1. administrative authority;
+2. agent delegation/orchestration;
+3. physical compute scheduling.
+
+A platform administrator can ask an infrastructure agent to investigate a problem. That does not mean the agent receives every administrator credential, and it does not mean it chooses physical Slurm placement.
+
+## 1.6 Virtual organisation model
+
+The long-term system can expose specialists such as:
+
+~~~text
+coordination / research organisation
+├── research assistants
+├── software engineering agents
+├── security operations agents
+├── storage/data agents
+├── user-management agents
+├── education/tutorial agents
+├── observability agents
+└── scientific workflow specialists
+~~~
+
+These are policy-scoped software principals, not personalities with implicit organisational authority.
+
+Paperclip may later coordinate these runtimes and specialists. ACP remains the state and policy substrate underneath that coordination.
+
+## 1.7 Non-goals
+
+ACP does not aim to:
+
+- replace Kubernetes, Slurm, OpenStack, Terraform or Argo CD;
+- duplicate Quantum Platform's user-account lifecycle;
+- absorb quantum-workflows scientific logic;
+- make every model self-hosted at all costs;
+- require one agent framework;
+- store secrets in prompts or long-term memory;
+- expose one universal shell to every agent;
+- hide infrastructure decisions that need auditability;
+- optimise for maximum autonomy before durability and policy are proven.
+
+## 1.8 Engineering discipline
+
+The project follows the wider platform governance model:
+
+~~~text
+feature/* / agent/* / student/*
+             |
+             v
+         protected dev
+             |
+      integration + CI
+             |
+             v
+       release/vX.Y.Z
+             |
+      freeze / staging
+             |
+             v
+        protected main
+~~~
+
+Major platform releases follow an approximately six-month cadence: five months of active development/integration and roughly one month of release freeze, stabilisation and conformance testing.
+
+That cadence should not prevent continuous upstream tracking and small compatible improvements between releases.

@@ -1,107 +1,168 @@
 # 4. Identity, tenancy and policy
 
-## 4.1 Identity source
+## 4.1 Human identity authority
 
-`quantum-platform` remains authoritative for human identity, email verification, MFA, passkeys,
-research programmes and programme roles. The control plane stores an opaque external `subject`
-reference and a snapshot of the authorisation context used for a task; it does not validate user
-passwords or duplicate Django's account lifecycle.
+Quantum Platform remains authoritative for human identity, authentication, MFA/passkeys, person/profile data, research programmes and programme roles.
 
-The initial subject can be `django:user:<id>`. Before third-party federation, add an immutable UUID
-or OIDC-compatible `sub` to `quantum-platform`; mutable email addresses must never be primary keys.
+Agent Control Plane never validates user passwords and never invents a parallel account lifecycle.
 
-Service principals use a separate namespace, for example:
+Each participating user has an immutable Quantum Platform `AgentPrincipal` UUID. ACP consumes that UUID as its stable external subject:
 
-```text
+~~~text
+urn:quantum-platform:user:<AgentPrincipal UUID>
+~~~
+
+That subject is the durable owner reference for personal agent state.
+
+## 4.2 AgentPrincipal is not POSIX identity
+
+Do not derive ACP identity from UID/GID.
+
+~~~text
+Quantum Platform user
+        |
+        +-- AgentPrincipal UUID  -> application identity / ACP owner
+        |
+        +-- POSIX UID/GID        -> operating-system / scheduler identity
+        +-- SSH keys
+        +-- WireGuard identity
+        +-- programme memberships
+~~~
+
+POSIX UID/GID may be deterministic and never reused within the platform, but it exists to make Unix files, SSH and scheduler processes work. It is an attribute linked to the principal, not the primary key of projects, conversations, memory or skills.
+
+This separation allows future federation, multiple POSIX domains, username changes and non-POSIX clients without changing ownership of ACP state.
+
+## 4.3 Delegated assertions
+
+Quantum Platform issues short-lived signed assertions to ACP. Browser clients do not receive the platform signing key or ACP database credentials.
+
+Scopes remain narrow and purpose-specific. For example:
+
+~~~text
+admin:diagnostics
+agent:personal
+agent:conversation:read
+agent:conversation:write
+agent:run:read
+~~~
+
+The exact scope vocabulary may evolve, but administrative and personal-agent authority must remain distinct.
+
+## 4.4 Tenant and programme boundaries
+
+A tenant is an isolation and policy boundary, not merely a billing label.
+
+Potential forms include:
+
+- a personal laboratory;
+- a research programme;
+- a teaching cohort;
+- a CHPC/NICIS institutional environment;
+- a UY activation/community programme;
+- a platform operations tenant.
+
+A person may belong to multiple tenants/programmes. Every durable ACP object carries an explicit owner/scope.
+
+Cross-tenant collaboration requires an explicit share/grant. Retrieval must never cross boundaries simply because two users mention related work.
+
+## 4.5 Personal-state isolation
+
+Personal projects, conversations, messages and future memory are protected by both:
+
+- tenant context; and
+- subject ownership.
+
+The database should enforce that boundary with RLS where practical so an application query bug does not automatically become a cross-user data breach.
+
+Administrative operational records may use different visibility rules, but those rules must not silently broaden access to private research conversations.
+
+## 4.6 Service and agent principals
+
+Non-human principals use separate namespaces, for example:
+
+~~~text
 service:telegram-adapter
 service:discord-adapter
-service:research-observer
-agent:infra-orchestrator:<instance-id>
-```
+service:model-gateway
+service:execution-broker
+agent:infra-orchestrator:<instance>
+agent:security-specialist:<instance>
+~~~
 
-## 4.2 Tenant model
+A service principal has explicitly declared capabilities and cannot impersonate a user merely because it processes that user's request.
 
-A tenant is an isolation and policy boundary, not only a billing label. Initial tenant forms are:
+## 4.7 Agent authority
 
-- Nyameko personal laboratory;
-- a research programme;
-- a CHPC or SCC teaching cohort;
-- a future UY activation, club or special-interest group;
-- a platform/infrastructure operations tenant.
+An agent instance receives a bounded authority envelope:
 
-A person may belong to several tenants. Every conversation, memory, task, artifact and channel
-binding carries one tenant. Cross-tenant research collaboration is an explicit share/grant, not a
-query that happens to find both parties.
-
-## 4.3 Agent principals
-
-An agent instance receives:
-
-- one tenant and optional user owner;
-- an immutable agent-definition and policy digest;
-- a capability set;
-- a model-pool allowlist;
-- an execution-class allowlist;
-- secret references it may request but never read into context;
+- tenant and optional user/project owner;
+- immutable agent-definition/version;
+- capability set;
+- logical model-pool allowlist;
+- execution-class allowlist;
 - storage scopes;
-- a maximum lifetime and concurrency budget.
+- secret references it may request;
+- egress constraints;
+- time/concurrency/token/resource budgets.
 
-Subagents receive equal or narrower scopes. Delegation never amplifies authority.
+Subagents receive equal or narrower authority. Delegation never amplifies privilege.
 
-## 4.4 Capability model
+## 4.8 Capabilities
 
-Capabilities are verbs over narrowly defined resources:
+Capabilities are narrow verbs over narrow resources:
 
-```text
-repository.read:infra-hpc-qc-k8s
-prometheus.query:approved-recording-rules
-slurm.submit:partition=a100,account=programme-42
-artifact.write:tenant=programme-42
-git.push:repo=quantum-workflows,branch=agent/*
-```
+~~~text
+repository.read:quantum-workflows
+prometheus.query:platform-health
+slurm.submit:offering=qiskit-aer-large
+artifact.write:project=<uuid>
+git.push:repo=agent-control-plane,branch=agent/*
+~~~
 
-Avoid coarse permissions such as `shell`, `admin` or `cluster`. A specialist may be able to query
-selected Kubernetes resources without possessing a kubeconfig, because a tool service executes a
-validated query on its behalf.
+Avoid ambient permissions such as unrestricted `shell`, `cluster-admin` or broad provider credentials.
 
-## 4.5 Policy decision
+Prefer validated tool services and execution contracts to passing raw credentials into a runtime.
 
-Policy combines:
+## 4.9 Policy decision
 
-- subject and tenant role;
-- agent principal and delegation ancestry;
-- requested capability and resource selector;
+Policy considers:
+
+- authenticated subject;
+- tenant/programme;
+- agent definition and delegation ancestry;
+- requested capability;
+- project/conversation scope;
 - sensitivity and data residency;
 - input channel;
-- model/runtime trust level;
-- environment (`dev`, `stag`, `prod`);
-- exact plan digest and approval state;
-- time, quota and incident state.
+- runtime/model trust;
+- environment;
+- quota/budget;
+- incident state;
+- exact plan/approval state.
 
-Policy is enforced before planning, before every tool call, before secret resolution and before
-execution. The agent's own statement that a call is safe is not policy evidence.
+Policy is enforced outside the model before privileged operations.
 
-## 4.6 Approval contract
+## 4.10 Approvals
 
-An approval binds:
+High-impact approval binds:
 
-- task and plan digest;
-- actor and tenant;
-- capability and concrete resource selectors;
-- human-readable diff/command/impact;
+- task/run and exact plan digest;
+- subject and tenant;
+- capability and concrete resource selector;
+- human-readable impact/diff;
 - validation evidence;
-- expiry and maximum uses;
-- approver identity and strong-authentication level;
-- outcome and execution result.
+- expiry and use count;
+- approver identity and authentication strength.
 
-If the plan changes, approval is invalid. Telegram and Discord may notify and link to an approval;
-high-risk approval occurs in `quantum-platform` with MFA/passkey re-authentication.
+If the executable plan changes, the approval no longer applies.
 
-## 4.7 Administrative oversight
+External messaging surfaces may notify users of an approval request, but privileged approval should occur on an authenticated trusted surface.
 
-Platform administrators may inspect system-wide metadata and policy outcomes. Access to message
-content and research artifacts should still be purpose-bound and audited. `is_superuser` must not
-silently turn every personal research conversation into routine administrative reading.
+## 4.11 Administrative oversight
 
-Emergency access is a separate break-glass workflow with strong authentication, a reason, short
-expiry, notification and retrospective review.
+Administrative visibility is itself a capability.
+
+Platform operators need system health, policy outcomes, queue/resource usage and incident tools. Access to private conversation content or research artifacts should be purpose-bound, audited and exceptional rather than an automatic consequence of administrator status.
+
+Break-glass access requires strong authentication, reason, expiry and retrospective review.
