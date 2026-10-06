@@ -1,120 +1,111 @@
-# 8. Clients, persistent chat, Telegram and Discord
+# 8. Clients, chat and external channels
 
-## 8.1 One conversation service, many views
+## 8.1 One canonical conversation, many surfaces
 
-The persistent assistant should feel continuous across:
+The same conversation should be usable from:
 
-- `quantum.nyameko.com` and the authenticated user portal;
-- the JupyterHub landing page;
-- each spawned JupyterLab session;
+- Quantum Platform web;
+- Jupyter/JupyterLab;
+- SSH/TUI;
 - Spacemacs/gptel;
-- Telegram and Discord where the user has linked them.
+- future desktop/mobile/API clients;
+- linked Telegram/Discord channels where policy allows.
 
-Clients do not synchronise transcripts with one another. They connect to the same canonical
-conversation API and subscribe to the same ordered run events.
+Clients do not synchronise separate histories. They attach to the same ACP project/conversation identifiers.
 
-## 8.2 Web chat
+~~~text
+Quantum Platform ─┐
+Jupyter ──────────┤
+SSH/TUI ──────────┼──> ACP canonical conversation
+gptel ────────────┤
+API ──────────────┘
+~~~
 
-Add a shared Astro component/package in `quantum-platform`:
+## 8.2 Client state is disposable
 
-- collapsible persistent side panel on the portal;
-- conversation picker, search, rename, archive and export;
-- streaming answer/tool timeline;
-- model/agent mode selector expressed as logical presets;
-- attachment and research/workflow context controls;
-- clear pending approval cards and deep links;
-- task/job/result links;
-- privacy, sharing and retention controls.
+Closing a browser, deleting a notebook Pod or exiting an SSH session must not delete canonical state.
 
-The browser uses the existing same-origin Django session. Django exchanges it for a short-lived,
-audience-limited control-plane token containing subject, tenant/programme roles and strong-auth
-time. The browser never receives service credentials.
+Clients may cache UI/session information locally. They must be able to recreate their view from ACP APIs.
 
-## 8.3 JupyterHub and JupyterLab
+## 8.3 Quantum Platform web
 
-Use the same SSO identity and conversation API. A JupyterLab extension or server proxy can supply
-explicit context references:
+Quantum Platform is the primary product surface.
 
-```text
-notebook path + content digest
-selected cell/range
-kernel/environment metadata
-Slurm allocation/job ID
-workflow/result manifest URI
-```
+The future Guide/co-scientist can provide:
 
-Do not upload an entire home directory or notebook automatically. Context is user-selected or
-policy-approved and recorded with the message.
+- project/conversation picker;
+- streamed assistant output;
+- task/run history;
+- attachment/artifact references;
+- model/agent logical presets;
+- workflow/run links;
+- approval cards;
+- privacy/retention controls.
 
-The chat can survive the notebook pod because its canonical history is in PostgreSQL; notebook
-files survive according to the user's Jupyter/Cinder storage policy.
+The browser authenticates to Quantum Platform. Server-side components issue scoped short-lived assertions to ACP.
 
-## 8.4 Spacemacs/gptel
+Do not put ACP signing keys or privileged runtime tokens in browser JavaScript/localStorage.
 
-Spacemacs remains the advanced cockpit. Expose separate presets:
+## 8.4 Jupyter
 
-- direct low-latency model endpoint for simple completion/explanation;
-- control-plane/Hermes agent endpoint for tool-using tasks;
-- `@infra`, `@research`, `@quantum`, `@review` logical modes;
-- local Ollama fallback.
+The Jupyter Pod is a low-cost workbench client, not the source of agent truth.
 
-Credentials live in `auth-source`, not `config.el`. Presets select logical pools and agents; the
-server resolves physical models. gptel conversations may bind to a platform `conversation_id` so
-the web UI can resume them. Editor buffer contents are sent only when the user selects them.
+A Jupyter extension or notebook client can:
 
-## 8.5 Telegram and Discord are liaison adapters
+- list projects/conversations;
+- attach to an existing conversation;
+- send messages;
+- inspect runs;
+- submit bounded workflows.
 
-Each bot runs as a separate, unprivileged service:
+Notebook culling must not affect canonical conversation state.
 
-```text
-Telegram/Discord event
-        ↓
-signature/platform validation + rate limit
-        ↓
-normalised channel envelope
-        ↓
-linked platform subject + tenant policy
-        ↓
-conversation/task API
-        ↓
-sanitised streamed/final response
-```
+## 8.5 SSH/TUI
 
-The adapter holds only its bot token and a short-lived control-plane service credential. It has no
-kubeconfig, OpenStack credential, Slurm SSH key or Git push token.
+M4g makes the terminal a first-class ACP client.
 
-## 8.6 Account linking
+It should support conversation/project operations while always preserving access to the normal Unix shell.
 
-1. The authenticated user requests a short-lived one-time linking code in `quantum-platform`.
-2. The user sends that code to the bot/DM.
-3. The adapter redeems it once and creates a channel binding to the immutable subject.
-4. The portal shows the binding and allows revocation.
+Terminal tooling such as Herdr can improve local/remote agent supervision but does not define identity or history.
 
-Never identify a user merely by matching email, display name or Discord nickname.
+## 8.6 gptel/editor clients
 
-## 8.7 Channel policy
+gptel/Spacemacs should bind editor buffers/presets to ACP conversation IDs.
 
-| Surface | Default scope | Mutation approval |
-| --- | --- | --- |
-| portal | personal/programme conversations | allowed through strong-auth approval UI |
-| Jupyter | notebook/research context | portal approval link |
-| gptel | selected buffers/repos | portal approval link or local development policy |
-| Telegram DM | status, questions, research digest, read-only tasks | never high-risk in chat; deep-link to portal |
-| Discord DM | same as Telegram | deep-link to portal |
-| Discord project channel | explicitly bound programme context, mention-triggered | no privileged approval |
+The editor may also expose direct-model sessions for disposable work. Those should be visually/semantically distinct from ACP-backed durable conversations.
 
-In public/group channels, default to minimal responses and never disclose private task details,
-security telemetry, quotas, collaborator suggestions or cross-tenant memories.
+Credentials belong in secure local credential mechanisms such as auth-source, not checked-in configuration.
 
-## 8.8 Discord versus Telegram roles
+## 8.7 External messaging
 
-Discord is useful for persistent topic/project channels, educational communities and multi-agent
-observatories. Telegram is useful for personal notifications, concise commands and urgent status.
-Neither should become the database. Channel history is a presentation record; canonical task and
-conversation state stays in the control plane.
+Telegram/Discord should be channel adapters into ACP, never parallel agent systems.
 
-## 8.9 Notification discipline
+Account linking must be explicit and authenticated.
 
-Notify on outcomes that need attention: approval requested, long job completed/failed, security
-incident summary or scheduled research digest. Avoid mirroring every tool event into chat. Users
-need per-channel quiet hours, digesting and severity thresholds.
+A display name, handle or server role is not sufficient proof of Quantum Platform identity.
+
+## 8.8 Channel policy
+
+External channels need:
+
+- account linking/revocation;
+- tenant/project scope;
+- replay protection;
+- rate limits;
+- quiet hours;
+- sensitivity/redaction policy;
+- capability restrictions.
+
+High-impact approvals should deep-link back to a trusted authenticated platform surface.
+
+## 8.9 Notifications
+
+Notify for things that need attention:
+
+- approval requested;
+- long job completed/failed;
+- security/operational incident;
+- scheduled research digest;
+- collaborator/research candidate where authorised.
+
+Do not mirror every internal tool event into user chat.
