@@ -1,83 +1,96 @@
-# Quick Start
+# Contributor quick start
 
-## What this service is
+## Start with the architecture
 
-Agent Control Plane (ACP) is the durable policy and orchestration layer between authenticated platform users and pluggable agent runtimes.
+ACP is the durable state/policy/coordination layer between Quantum Platform users and interchangeable agent runtimes/models/execution systems.
 
-It is **not**:
+Read in this order:
 
-- the Kubernetes scheduler;
-- the Slurm scheduler;
-- the model inference server;
-- the canonical user database;
-- a privileged shell bot.
-
-## Current direction
-
-The immediate milestone is [M4 Persistent Personal Agents](M4-PERSISTENT-AGENTS.md).
-
-The required user experience is:
-
-```text
-Quantum Platform ─┐
-Jupyter ──────────┼──► ACP ───► Hermes/runtime
-SSH/TUI ──────────┤
-gptel ────────────┘
-```
-
-All clients bind to the same canonical project/conversation state.
-
-## Local development
-
-Use the repository's existing Python/application setup and run the current test suite before changing runtime adapters or schemas.
-
-Start with the documentation:
-
-1. [Vision and principles](01-vision-and-principles.md)
+1. [Vision, objectives and principles](01-vision-and-principles.md)
 2. [Reference architecture](02-reference-architecture.md)
 3. [Repository boundaries](03-repository-boundaries.md)
-4. [Memory/state/storage](05-memory-state-and-storage.md)
-5. [Runtimes/harnesses](07-runtimes-harnesses-and-sandboxes.md)
-6. [M4 persistent agents](M4-PERSISTENT-AGENTS.md)
-7. [Integration roadmap](10-integration-roadmap.md)
+4. [Identity, tenancy and policy](04-identity-tenancy-and-policy.md)
+5. [Memory, state and storage](05-memory-state-and-storage.md)
+6. [Runtimes, harnesses and sandboxes](07-runtimes-harnesses-and-sandboxes.md)
+7. [M4 persistent personal agent](M4-PERSISTENT-AGENTS.md)
+8. [Roadmap](10-integration-roadmap.md)
 
-## State rule
+## Four questions before adding an integration
 
-When adding a new integration, write down **who owns the canonical state**.
+1. Who owns canonical state?
+2. Which stable identity owns/authorises it?
+3. Which portable contract separates the component from ACP?
+4. Which failure/restart test proves that separation?
 
-Example:
+## Current milestone
 
-```text
-conversation history      → ACP/PostgreSQL
-Hermes session mapping    → ACP + runtime adapter
-Hermes local cache        → Hermes profile
-research files            → user/project storage
-workflow result           → quantum-workflows artifact/provenance
-scheduler state           → Slurm/provider, referenced by ACP/platform
-```
+M4a is intentionally narrow:
 
-Do not create a second hidden canonical database because a runtime happens to ship one.
+~~~text
+authenticated AgentPrincipal
+        |
+minimal project
+        |
+conversation
+        |
+canonical messages
+        |
+personal agent turn/run
+        |
+runtime adapter
+        |
+assistant message committed
+~~~
 
-## First M4 vertical slice
+Then destroy/restart clients and runtime workers and prove the conversation survives.
 
-The smallest useful implementation is:
+Do not pull M4b memory, M4c rich projects, M4d skills, M4e persistent personal Hermes profiles, M4f Guide or M4g SSH UX into M4a.
 
-```text
-authenticated user
-  ↓
-create project
-  ↓
-create conversation
-  ↓
-send message
-  ↓
-Hermes adapter
-  ↓
-persist response/events
-  ↓
-restart worker
-  ↓
-resume same conversation
-```
+## Canonical state rule
 
-Only after that works should memory promotion, more harnesses or autonomous agents expand.
+~~~text
+human identity                  -> Quantum Platform
+conversation / agent context    -> ACP PostgreSQL
+runtime cache/session           -> runtime
+scientific result               -> quantum-workflows
+scheduler job                   -> scheduler/provider
+source/shared definitions       -> Git
+large artifact                  -> project/object storage
+~~~
+
+## Identity rule
+
+Use AgentPrincipal UUID for durable ACP ownership.
+
+Do not use username, email or POSIX UID/GID as the ACP primary identity.
+
+## Local validation
+
+Use the repository Python environment and run:
+
+~~~sh
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install -e '.[dev]'
+ruff check src tests scripts
+pytest
+~~~
+
+Database/concurrency tests require the documented disposable PostgreSQL test DSNs.
+
+## Branch discipline
+
+Ordinary work:
+
+~~~text
+feature/* / agent/*
+       |
+       v
+      dev
+       |
+ release/vX.Y.Z
+       |
+      main
+~~~
+
+Do not bypass review/protection because a change was authored by an agent.

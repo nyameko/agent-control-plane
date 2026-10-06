@@ -1,101 +1,125 @@
-# 3. Repository boundaries
+# 3. Repository and authority boundaries
 
-## 3.1 Existing repository findings
+## 3.1 Core repository family
 
-The live repositories already contain a strong separation to preserve:
+The four core repositories intentionally separate infrastructure, product, agent coordination and scientific execution.
 
-- `infra-hpc-qc-k8s` treats Terraform, Ansible, kubeadm/Cilium, Argo CD, Slurm,
-  Prometheus/Grafana and the edge security services as independently authoritative layers. It also
-  contains an isolated `hermes_orchestrator` Ansible role and detailed Hermes federation,
-  multi-tenancy, harness and research-intelligence tutorials.
-- `quantum-platform` has a Django/PostgreSQL identity and research-programme model, an Astro user
-  portal, same-origin browser authentication, MFA/passkey foundations and audit events. Its
-  production manifests correctly live in the infrastructure repository.
-- `quantum-workflows` has an explicit prepare/execute/postprocess/persist lifecycle, Slurm/QRMI
-  path, immutable runner model and structured scientific result/provenance contract.
-- `uyuyu.africa` describes a distributed activation network in which participants become mentors,
-  organisers and founders. That calls for programme/community agents with intentionally narrower
-  data scopes than platform administrators.
-- `chpc-tech-eval/scc` is a teaching and assessment corpus, not an operational data source. A tutor
-  may retrieve it, but competition integrity and the mentor hands-off principle must remain policy.
-- `.spacemacs.d` already has a private `my-gptel` layer pointing at a local Hermes-compatible
-  endpoint. That is the natural advanced-user cockpit and should become a client, not absorb the
-  control plane.
+| Repository | Canonical responsibility |
+| --- | --- |
+| `infra-hpc-qc-k8s` | OpenStack, hosts, networking, Kubernetes substrate, Cinder, security controls, observability, GitOps deployment and Slurm infrastructure |
+| `quantum-platform` | Human identity, AgentPrincipal, programmes, entitlements and researcher-facing product experience |
+| `agent-control-plane` | Canonical agent context, task/run history, runtime mappings, policy, approvals and portable agent orchestration contracts |
+| `quantum-workflows` | Reproducible scientific workflows, runners, provider integration and scientific result provenance |
+
+This separation is foundational.
 
 ## 3.2 Ownership matrix
 
-| Concern | Canonical owner | Integration artifact |
+| Concern | Canonical owner | ACP role |
 | --- | --- | --- |
-| VM, network, security group, Cinder volume | `infra-hpc-qc-k8s` | Terraform modules/variables |
-| host packages and isolated Hermes VM | `infra-hpc-qc-k8s` | Ansible role/playbook |
-| production Deployments, Services, PVCs, NetworkPolicies | `infra-hpc-qc-k8s` | Argo CD/Kustomize resources |
-| service image and application API | `agent-control-plane` | OCI image + OpenAPI/contracts |
-| person, login, MFA, programme membership | `quantum-platform` | delegated identity token / API |
-| chat component and Jupyter launch UX | `quantum-platform` | Astro/Jupyter client of control-plane API |
-| canonical agent conversations and runs | `agent-control-plane` | PostgreSQL schema/API |
-| scientific workflow implementation | `quantum-workflows` | versioned runner + workflow manifest |
-| workflow catalogue, launch and result UX | `quantum-platform` | references immutable workflow version |
-| physical HPC/QPU scheduling | Slurm + QRMI/QDMI/provider adapters | signed execution request/job ID |
-| UY public content and activation philosophy | `uyuyu.africa` | read-only content integration |
-| SCC curriculum and assessment materials | `chpc-tech-eval/scc` | read-only tutor corpus |
-| Emacs UI/presets/key bindings | `.spacemacs.d` | gptel backend/presets |
+| Human login/MFA/passkeys | quantum-platform | consume delegated identity |
+| AgentPrincipal UUID | quantum-platform | stable external subject |
+| POSIX UID/GID | quantum-platform identity/provisioning | linked execution attribute |
+| Project/conversation/message state | agent-control-plane | canonical owner |
+| Memory and skill bindings | agent-control-plane | canonical owner |
+| Runtime-native session/cache | runtime | store correlation only |
+| Agent task/run/event/audit history | agent-control-plane | canonical owner |
+| VM/network/Cinder/Kubernetes resources | infra-hpc-qc-k8s | request bounded execution/deployment changes |
+| Slurm scheduling state | Slurm | keep external job references/observations |
+| Workflow scientific provenance | quantum-workflows | correlate task/run with workflow manifest |
+| User-facing chat/project UX | quantum-platform | render ACP state |
+| Git source/policies/shared skills | Git repositories | reference immutable versions |
+| Large artifacts | project/object/artifact storage | store metadata/digests/references |
 
-## 3.3 Required changes by repository
+## 3.3 Agent Control Plane
 
-### `agent-control-plane`
+ACP owns:
 
-Own the portable task/run/event contracts, routing policies, agent catalog, runtime adapters,
-conversation/memory APIs, approvals, audit and service image.
+- project/conversation/message APIs;
+- memory and skill contracts;
+- task/run/event lineage;
+- runtime adapter contracts;
+- runtime/profile/session mappings;
+- capability/policy decisions;
+- approvals;
+- model/execution routing metadata;
+- artifact and scheduler references;
+- service images and application migrations.
 
-### `infra-hpc-qc-k8s`
+ACP does not own user passwords, physical scheduling or scientific result truth.
 
-Add production deployment, Cinder claims, network policies, sealed static service secrets,
-database provisioning, ingress, ServiceMonitors, model-serving pools, sandbox-broker infrastructure
-and least-privileged execution adapters. Pin immutable image digests.
+## 3.4 Quantum Platform
 
-### `quantum-platform`
+Quantum Platform owns:
 
-Add a stable external subject identifier, delegated-token endpoint, agent preferences/retention
-settings, conversation UI, approval UI, channel-linking UI, Jupyter chat extension configuration and
-links between agent tasks, platform jobs and workflow results.
+- user authentication;
+- AgentPrincipal UUID;
+- person/profile data;
+- programme membership and entitlements;
+- POSIX identity allocation/provisioning policy;
+- user-facing account/project/chat/workbench/run UX;
+- short-lived delegated assertions to ACP.
 
-Do not copy all control-plane tables into the current `portal` Django app. The platform owns the
-human identity and presents the UX; the control plane owns agent execution records.
+Quantum Platform is a client and identity authority. It does not duplicate ACP's canonical conversation/memory database.
 
-### `quantum-workflows`
+## 3.5 Infrastructure repository
 
-Keep scientific code independent of agent frameworks. Add a machine-readable workflow capability
-descriptor and accept a platform/control-plane correlation ID. Preserve the existing result
-manifest as the scientific record and return its URI/digest to the control plane.
+`infra-hpc-qc-k8s` owns deployment/runtime infrastructure:
 
-### `.spacemacs.d`
+- Terraform/OpenStack;
+- Ansible/host roles;
+- Kubernetes/Cilium/Cinder;
+- Argo CD desired state;
+- ACP PostgreSQL/worker/API deployment resources;
+- NetworkPolicy and secret plumbing;
+- Prometheus/Grafana/Wazuh/Suricata;
+- Slurm;
+- later model-serving pools and sandbox infrastructure.
 
-Replace the hard-coded localhost-only Hermes definition with backends/presets for direct inference
-and the authenticated control-plane/Hermes endpoint. Keep credentials in `auth-source`.
+Application source and schema semantics remain in their application repositories.
 
-### `uyuyu.africa` and SCC
+## 3.6 Quantum Workflows
 
-Initially integrate only as public/read-only knowledge sources with provenance. Later add separate
-UY tenants/programmes and tutor policies; do not grant community or student agents infrastructure
-administration by inheritance.
+`quantum-workflows` remains independent of agent frameworks.
 
-## 3.4 Cross-repository change example
+It should accept portable execution/correlation metadata and return durable scientific provenance/results.
 
-An intelligent request to add an IQM workflow can become a coordinated change set:
+Agents may propose or submit workflows through authorised platform contracts, but ACP does not rewrite the scientific record.
 
-```text
+## 3.7 Editors, Jupyter and terminal clients
+
+JupyterLab, gptel/Spacemacs and SSH/TUI surfaces are clients of ACP.
+
+They do not own separate canonical chat histories.
+
+A client may cache local UI/session data, but every durable project/conversation identifier comes from ACP.
+
+## 3.8 External programmes and teaching repositories
+
+UY, SCC/AICE/QCC and related education/community systems can later consume ACP through narrower tenant/programme scopes.
+
+They do not inherit infrastructure-administrator authority.
+
+Teaching content remains content; assessment policy remains policy.
+
+## 3.9 Cross-repository change pattern
+
+A future new IQM/Pasqal/D-Wave integration may require coordinated changes:
+
+~~~text
 quantum-workflows
-└── provider-specific runner, tests and result schema
+└── workflow/provider runner + scientific provenance
 
 quantum-platform
-└── backend catalogue/credential UX and result presentation
+└── entitlement/credential UX + offering/result presentation
 
 infra-hpc-qc-k8s
-└── QRMI/QDMI adapter, secrets path, runner digest and observability
+└── deployment/secrets/network/scheduler integration
 
 agent-control-plane
-└── capability, agent skill, routing policy and evaluation scenario
-```
+└── capabilities/runtime/tool/routing/evaluation contracts
+~~~
 
-The control plane may coordinate branches and tests, but each repository retains its review,
-CI and merge authority.
+Each repository keeps independent review, CI, branch protection and release authority.
+
+ACP may coordinate work, but it does not become a privileged merge authority.

@@ -1,212 +1,203 @@
 # 10. Integration roadmap
 
-## 10.1 Sequencing rule
+## 10.1 Sequencing principle
 
-Build one secure vertical slice before a broad catalogue of agents:
+Build durable authority before broad autonomy.
 
-```text
-identity → conversation → read-only Hermes → evidence → audit → sandboxed patch → approval
-```
+~~~text
+identity
+  |
+canonical conversation continuity
+  |
+memory
+  |
+projects
+  |
+skills
+  |
+runtime-native profile enrichment
+  |
+ubiquitous clients
+  |
+multi-runtime/meta-orchestration
+  |
+accelerated inference
+  |
+bounded engineering/scientific execution
+  |
+QPU orchestration
+~~~
 
-Only then add external chat, autonomous schedules, more harnesses and production mutations.
+## 10.2 Foundation already established
 
-## Phase 0 — repository and contracts (this commit)
+The current repository family has established:
 
-### `agent-control-plane`
+- immutable AgentPrincipal identity mapping;
+- a Phase-1 ACP administrative API/worker/PostgreSQL slice;
+- durable task/run/event history;
+- bounded Hermes integration;
+- ACP deployment/storage/network-policy resources;
+- Quantum Platform workbench and Slurm execution foundations.
 
-- establish name, boundaries, threat model and ADRs;
-- define V1 task/plan/event contracts;
-- define agent, capability, model and execution-class catalogs;
-- implement/test deterministic dry-run routing;
-- propose relational schema and cross-repository changes.
+M4 starts from that foundation.
 
-### Acceptance
+## 10.3 M4 — persistent personal agents
 
-- no secret or production credential;
-- tests pass without model/GPU/network;
-- plans explain independent model and execution routing;
-- mutation routes require approval and execute nothing.
+### M4a — Persistent Personal Agent
 
-## Phase 1 — read-only administrative vertical slice
+Goal: canonical conversation continuity.
 
-### `infra-hpc-qc-k8s`
+Deliver only:
 
-- complete and harden the isolated `hermes-orchestrator` VM;
-- deploy `agent-control-plane` API/worker and PostgreSQL database through Argo CD;
-- create Cinder PVC for one Hermes administrative profile;
-- add NetworkPolicies and internal TLS/ingress;
-- deploy one self-hosted model endpoint and logical model gateway;
-- expose narrow read-only Prometheus, Kubernetes and Slurm tools;
-- add ServiceMonitor/dashboards and backup policy.
+- minimal project stub;
+- canonical conversation/messages;
+- AgentPrincipal + tenant ownership/RLS;
+- idempotent user-message ingestion;
+- personal task/run lineage;
+- worker context hydration from ACP;
+- assistant response commit;
+- survival across browser/Jupyter/SSH/worker/API restart;
+- permanent automated destructive conformance test.
 
-### `quantum-platform`
+Do not add full memory, rich projects, skills or Paperclip.
 
-- add immutable subject UUID;
-- add a delegated-token endpoint for the control plane;
-- add an administrator-only task/run viewer;
-- link control-plane audit summaries into the existing audit UI.
+### M4b — Memory
 
-### `agent-control-plane`
+Durable memory + provenance + retrieval + correction/invalidation + lifecycle.
 
-- implement PostgreSQL persistence, outbox worker and Hermes adapter;
-- support start/status/events/stop for read-only runs;
-- persist runtime/model decisions and tool evidence;
-- implement capability checks at each tool boundary.
+### M4c — Projects
 
-### Acceptance
+Full research/engineering workspace model.
 
-- investigate cluster health without write credentials;
-- restart Hermes/API pods without losing canonical task history;
-- remove H200 endpoint and observe policy-valid fallback or explicit failure;
-- prove untrusted log text cannot request a tool action;
-- correlate one request across portal, Hermes and telemetry.
+### M4d — Skills
 
-## M4 / Phase 2 — persistent user assistant
+Governed/versioned skills and scope bindings.
 
-### M4 acceptance contract
+### M4e — Persistent Hermes Profiles
 
-One project/conversation must survive browser close, Jupyter Pod replacement, SSH disconnect and runtime-worker restart, and be resumable from another supported client. Canonical state lives in ACP/PostgreSQL; runtime-local profile/session state is correlated but non-canonical.
+Rich runtime-native persona/profile/session persistence while ACP remains canonical.
 
+### M4f — Quantum Platform Guide
 
-### `quantum-platform`
+Ubiquitous researcher-facing ACP agent UI.
 
-- shared Astro chat component for portal pages;
-- conversation list/search/archive/export and retention settings;
-- programme/tenant selector;
-- attachment/context reference flow;
-- JupyterHub launch linkage and JupyterLab extension configuration;
-- approval UI foundation, still read-only in production.
+### M4g — SSH Enterprise Client
 
-### `agent-control-plane`
+Terminal attach/resume/create/list/run experience.
 
-- conversation/message APIs and SSE stream;
-- user/project agent instances and quotas;
-- memory-candidate, consent/promotion and deletion flow;
-- user-agent Cinder profile/workspace allocation metadata;
-- logical presets for tutor, research and coding assistance.
+## 10.4 Multi-runtime ecosystem
 
-### `.spacemacs.d`
+After M4:
 
-- authenticated control-plane/Hermes backend;
-- direct model gateway backend;
-- `@quick`, `@infra`, `@quantum`, `@research`, `@review` presets;
-- credentials from `auth-source`;
-- explicit conversation binding command.
+- Paperclip/meta-orchestration;
+- Hermes + alternative runtime adapters;
+- coding/security/storage/research/tutorial specialists;
+- Herdr-integrated developer workflows;
+- adapter conformance tests.
 
-### Acceptance
+Every runtime must pass a portability requirement:
 
-- start in portal, continue in Jupyter and resume in gptel;
-- notebook pod deletion does not lose conversation history;
-- one user cannot enumerate another user's conversations/profile PVC;
-- memory export/delete is demonstrable.
+> The same ACP conversation can continue after replacing the runtime.
 
-## Phase 3 — safe engineering work
+## 10.5 Accelerated inference
 
-### `infra-hpc-qc-k8s`
+Then add:
 
-- sandbox broker and ephemeral 32/64-vCPU OpenStack worker profiles;
-- egress filtering, image allowlist, quotas and cleanup reconciliation;
-- read-only Git integration, then narrowly scoped `agent/*` branch push;
-- isolated test Kubernetes/Slurm targets for integration tests.
+- A100/H200 serving pools;
+- vLLM production inference;
+- local Ollama/llama.cpp specialist pools;
+- model gateway;
+- quotas/health/routing telemetry;
+- evaluation-aware logical model pools.
 
-### `agent-control-plane`
+## 10.6 Engineering execution
 
-- repository/worktree tool adapter;
-- immutable plan/diff/test artifact bundle;
-- plan-bound approval with expiry and WebAuthn re-authentication;
-- multi-agent review: implementer, tester, security reviewer, synthesiser;
-- runtime/harness conformance test suite.
+Then add controlled:
 
-### Acceptance
+- sandbox broker;
+- isolated worktrees;
+- build/test workers;
+- agent/* branch workflows;
+- immutable patch/test evidence;
+- exact-plan approval for mutations.
 
-- produce coordinated patches across the three core repositories;
-- prove no agent can push `main`, merge, or access unrelated repositories;
-- revoke approval when a diff or command changes;
-- destroy a sandbox and retain only declared artifacts/audit.
+Protected branches/GitOps authority remain intact.
 
-## Phase 4 — model and compute fabric
+## 10.7 Scientific execution
 
-### `infra-hpc-qc-k8s`
+Integrate ACP with Quantum Platform/quantum-workflows bounded execution contracts:
 
-- vLLM pools on A100/H200 with reserved capacity and health telemetry;
-- Ollama/llama.cpp development and specialist pools;
-- model gateway authentication, quotas and fallback policy;
-- Slurm execution adapter for CPU/A100/H200 and later QPU brokers;
-- separate inference and research workload accounting.
+~~~text
+CPU Slurm
+   |
+A100/H200
+   |
+multinode/MPI
+   |
+hybrid quantum-classical workflow stages
+   |
+QPU/provider/QRMI/QDMI
+~~~
 
-### `agent-control-plane`
+ACP records agent/runtime/task correlation. quantum-workflows owns scientific provenance. Slurm/provider owns scheduling state.
 
-- live catalog resolution, queue/health-aware routing;
-- evaluation registry and model/harness scorecards;
-- budget and deadline constraints;
-- execution leases, heartbeats, retries and reconciliation;
-- capability-based scientific job planning.
+## 10.8 External channels and collaboration
 
-### `quantum-workflows`
+Only after identity/context is stable:
 
-- machine-readable workflow descriptors;
-- correlation ID input and manifest link;
-- resource/capability requirements per stage;
-- immutable runner digests and Slurm DAG acceptance tests.
+- Telegram/Discord account linking;
+- channel-scoped capabilities;
+- notification/digest policy;
+- collaboration discovery;
+- programme/tutor/community agents.
 
-### Acceptance
+## 10.9 Carefully bounded operations automation
 
-- CPU/A100/H200 selection matches measured requirements;
-- QPU queue does not hold a GPU allocation;
-- restricted tasks never leave self-hosted pools;
-- route/fallback reasons are visible to users and operators.
+Start with reversible low-risk actions.
 
-## Phase 5 — Telegram and Discord
+Production Terraform apply, broad Kubernetes apply, account/security-group changes and protected-branch merge stay outside general agent authority unless a future ADR explicitly changes that with a risk model and break-glass path.
 
-- deploy isolated liaison adapters;
-- implement portal-generated one-time account linking;
-- add DM/project-channel bindings and revocation;
-- add status, digest and read-only task flows;
-- require portal deep-link + WebAuthn for high-impact approval;
-- enforce quiet hours, rate limits and privacy-safe group behaviour.
+## 10.10 Release/conformance
 
-### Acceptance
+A milestone is not complete because YAML exists.
 
-- an unlinked account learns nothing about platform state;
-- display-name collision cannot bind identities;
-- bot compromise yields no infrastructure credential;
-- private responses never leak into a project/public channel.
+Release evidence includes:
 
-## Phase 6 — research intelligence and UY activation network
+- commit SHAs;
+- image digests;
+- migration version;
+- CI results;
+- runtime/model revisions;
+- acceptance/conformance results;
+- rollback/recovery evidence.
 
-- literature ingestion with provenance/licence metadata;
-- user/programme research graphs and saved searches;
-- collaboration suggestions using consented, shareable summaries;
-- experiment-to-literature feedback loop;
-- UY activation/tutor agents with read-only open materials;
-- SCC tutor mode respecting assessment and hands-off rules;
-- multilingual and bandwidth-conscious clients where practical.
+Major releases follow the broader six-month platform rhythm with active dev/staging followed by release freeze/stabilisation.
 
-### Acceptance
+## 10.11 Immediate M4a repository sequence
 
-- every collaboration suggestion explains evidence and sharing scope;
-- private proposal contents are not used outside the tenant;
-- tutor agents distinguish instruction from assessed work policy;
-- research insights link to reproducible workflows/results.
+~~~text
+agent-control-plane
+  feature/m4a-persistent-personal-agent
+  migration infrastructure
+  canonical conversation tables
+  ownership/RLS
+  API/tests
+  personal-turn runtime hydration
+  destructive conformance test
 
-## Phase 7 — carefully bounded operations automation
+quantum-platform
+  feature/m4a-personal-agent
+  researcher-scoped ACP assertion
+  minimal project/conversation UI
+  server-side ACP client
 
-Begin with reversible, low-risk, pre-authorised runbooks such as restarting a failed development
-pod or rotating a disposable sandbox. Expand only after measured reliability and incident review.
+infra-hpc-qc-k8s
+  feature/m4a-persistent-personal-agent
+  migration rollout
+  personal worker
+  NetworkPolicy/telemetry
+  restart/destruction acceptance runbook
 
-Production Terraform apply, cluster-wide Kubernetes apply, account/security-group changes and
-protected-branch merge remain outside general agent authority. If ever enabled, each requires a
-separate ADR, risk analysis, break-glass path and environment-specific approval policy.
-
-## 10.2 Near-term pull request sequence
-
-1. Create GitHub repository from this tarball and protect `main`.
-2. Add database persistence and migration tooling here.
-3. Add `agent-control-plane` namespace/database/PVC/network policy in `infra-hpc-qc-k8s`.
-4. Add immutable subject and delegated-token endpoint in `quantum-platform`.
-5. Add Hermes adapter with only health and read-only run APIs.
-6. Add the portal's administrator run viewer.
-7. Add one Prometheus health tool and its injection test suite.
-8. Add personal persistent chat after the slice is reliable.
-
-This ordering deliberately creates evidence and boundaries before granting “hands.”
+quantum-workflows
+  no required M4a change
+~~~
