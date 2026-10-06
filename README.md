@@ -1,5 +1,14 @@
 # agent-control-plane
 
+## Current milestone — M4 persistent agents
+
+The infrastructure/platform stack now has a validated M3 path from authenticated research identity through a Jupyter workbench to durable Slurm execution. ACP's next job is therefore **persistence and continuity**, not broader autonomous infrastructure authority.
+
+M4 must preserve the same project/conversation across portal, Jupyter, SSH/TUI and editor clients, surviving browser close, Jupyter Pod loss and agent-runtime restart.
+
+See [M4 — Persistent Personal Agents](docs/M4-PERSISTENT-AGENTS.md) and [Quick Start](docs/QUICK_START.md).
+
+
 Cross-project coordination for a self-hosted engineering and research organization.
 The compute fabric can include OpenStack VMs, Kubernetes, Slurm, A100/H200 inference
 and eventually QPUs. Models, agent runtimes, tools and resource schedulers remain

@@ -32,3 +32,9 @@ stable records; the numbered guides explain the wider rationale and implementati
 - [Phase 1 implementation contract](12-phase1.md)
 - [Spacemacs, Hermes, Herdr, Herder and Glyph](13-ade-workflow.md)
 - [Integration review and future roadmap](14-integration-review.md)
+
+
+## Current milestone
+
+- [Quick Start](QUICK_START.md)
+- [M4 — Persistent Personal Agents](M4-PERSISTENT-AGENTS.md) — canonical conversations, projects, memory, skills, persistent Hermes mapping and cross-surface continuity.
