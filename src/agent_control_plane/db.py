@@ -1,4 +1,4 @@
-"""PostgreSQL is both the Phase 1 queue and canonical run ledger."""
+"""PostgreSQL is the canonical ACP state store and Phase 1 queue/run ledger."""
 
 from contextlib import contextmanager
 from uuid import uuid4
@@ -9,6 +9,7 @@ from psycopg.types.json import Jsonb
 
 WORKER_LOCK = (174092, 2)
 DIAGNOSTIC = "quantum-platform-pod-readiness"
+SCHEMA_VERSION = 2
 FIELDS = """
  t.id AS task_id, t.tenant, t.requested_by, t.diagnostic, t.created_at,
  r.id AS run_id, r.status, r.profile, r.model, r.runtime_revision, r.session_id,
@@ -23,9 +24,11 @@ def connection(dsn):
 
 
 @contextmanager
-def scoped(conn, tenant):
+def scoped(conn, tenant, subject=None):
     with conn.transaction():
         conn.execute("SELECT set_config('acp.tenant_id', %s, true)", (tenant,))
+        if subject is not None:
+            conn.execute("SELECT set_config('acp.subject_id', %s, true)", (subject,))
         conn.execute("SET LOCAL statement_timeout = '5s'")
         yield
 
@@ -36,8 +39,10 @@ def ready(conn):
     ).fetchone()
     if role["rolsuper"] or role["rolbypassrls"]:
         raise RuntimeError("Application database role must enforce RLS")
-    version = conn.execute("SELECT version FROM acp1.schema_version").fetchone()
-    if version != {"version": 1}:
+    version = conn.execute(
+        "SELECT version FROM acp1.schema_version ORDER BY version DESC LIMIT 1"
+    ).fetchone()
+    if version != {"version": SCHEMA_VERSION}:
         raise RuntimeError("Database migration is required")
 
 
@@ -54,7 +59,6 @@ class QueueFull(Exception):
 
 def create_task(conn, principal, key):
     with scoped(conn, principal.tenant):
-        # Serialize queue admission per tenant, including idempotent retries.
         conn.execute("SELECT pg_advisory_xact_lock(174093, hashtext(%s))", (principal.tenant,))
         existing = conn.execute(
             "SELECT id FROM acp1.task WHERE requested_by=%s AND idempotency_key=%s",
@@ -106,6 +110,143 @@ def list_tasks(conn, tenant, offset):
             "ORDER BY t.created_at DESC,t.id DESC LIMIT 50 OFFSET %s",
             (offset,),
         ).fetchall()
+
+
+def create_project(conn, principal, title):
+    project_id = uuid4()
+    with scoped(conn, principal.tenant, principal.subject):
+        return conn.execute(
+            "INSERT INTO acp1.project(id,tenant,owner_subject,title) VALUES (%s,%s,%s,%s) "
+            "RETURNING id,title,created_at,updated_at,archived_at",
+            (project_id, principal.tenant, principal.subject, title),
+        ).fetchone()
+
+
+def list_projects(conn, principal):
+    with scoped(conn, principal.tenant, principal.subject):
+        return conn.execute(
+            "SELECT id,title,created_at,updated_at,archived_at FROM acp1.project "
+            "ORDER BY updated_at DESC,id DESC LIMIT 100"
+        ).fetchall()
+
+
+def create_conversation(conn, principal, title, project_id=None):
+    conversation_id = uuid4()
+    with scoped(conn, principal.tenant, principal.subject):
+        if project_id is not None:
+            project = conn.execute(
+                "SELECT id FROM acp1.project WHERE id=%s AND archived_at IS NULL",
+                (project_id,),
+            ).fetchone()
+            if project is None:
+                return None
+        return conn.execute(
+            "INSERT INTO acp1.conversation"
+            "(id,tenant,owner_subject,project_id,title) VALUES (%s,%s,%s,%s,%s) "
+            "RETURNING id,project_id,title,created_at,updated_at,archived_at",
+            (
+                conversation_id,
+                principal.tenant,
+                principal.subject,
+                project_id,
+                title,
+            ),
+        ).fetchone()
+
+
+def list_conversations(conn, principal, project_id=None):
+    with scoped(conn, principal.tenant, principal.subject):
+        if project_id is None:
+            return conn.execute(
+                "SELECT id,project_id,title,created_at,updated_at,archived_at "
+                "FROM acp1.conversation ORDER BY updated_at DESC,id DESC LIMIT 100"
+            ).fetchall()
+        return conn.execute(
+            "SELECT id,project_id,title,created_at,updated_at,archived_at "
+            "FROM acp1.conversation WHERE project_id=%s "
+            "ORDER BY updated_at DESC,id DESC LIMIT 100",
+            (project_id,),
+        ).fetchall()
+
+
+def conversation_detail(conn, principal, conversation_id):
+    with scoped(conn, principal.tenant, principal.subject):
+        row = conn.execute(
+            "SELECT id,project_id,title,created_at,updated_at,archived_at "
+            "FROM acp1.conversation WHERE id=%s",
+            (conversation_id,),
+        ).fetchone()
+        if row:
+            row["messages"] = conn.execute(
+                "SELECT id,sequence,author_kind,content,source_channel,client_message_id,created_at "
+                "FROM acp1.message WHERE conversation_id=%s ORDER BY sequence",
+                (conversation_id,),
+            ).fetchall()
+        return row
+
+
+def append_message(
+    conn,
+    principal,
+    conversation_id,
+    *,
+    author_kind,
+    content,
+    source_channel,
+    client_message_id=None,
+):
+    message_id = uuid4()
+    with scoped(conn, principal.tenant, principal.subject):
+        conversation = conn.execute(
+            "SELECT id FROM acp1.conversation WHERE id=%s AND archived_at IS NULL FOR UPDATE",
+            (conversation_id,),
+        ).fetchone()
+        if conversation is None:
+            return None
+        if client_message_id is not None:
+            existing = conn.execute(
+                "SELECT id,sequence,author_kind,content,source_channel,client_message_id,created_at "
+                "FROM acp1.message WHERE conversation_id=%s AND client_message_id=%s",
+                (conversation_id, client_message_id),
+            ).fetchone()
+            if existing:
+                return existing
+        sequence = conn.execute(
+            "SELECT COALESCE(max(sequence),0)+1 AS sequence FROM acp1.message "
+            "WHERE conversation_id=%s",
+            (conversation_id,),
+        ).fetchone()["sequence"]
+        row = conn.execute(
+            "INSERT INTO acp1.message"
+            "(id,tenant,owner_subject,conversation_id,sequence,author_kind,content,"
+            "source_channel,client_message_id) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "RETURNING id,sequence,author_kind,content,source_channel,client_message_id,created_at",
+            (
+                message_id,
+                principal.tenant,
+                principal.subject,
+                conversation_id,
+                sequence,
+                author_kind,
+                Jsonb(content),
+                source_channel,
+                client_message_id,
+            ),
+        ).fetchone()
+        conn.execute(
+            "UPDATE acp1.conversation SET updated_at=now() WHERE id=%s",
+            (conversation_id,),
+        )
+        if conn.execute(
+            "SELECT project_id FROM acp1.conversation WHERE id=%s", (conversation_id,)
+        ).fetchone()["project_id"] is not None:
+            conn.execute(
+                "UPDATE acp1.project SET updated_at=now() WHERE id=("
+                "SELECT project_id FROM acp1.conversation WHERE id=%s)",
+                (conversation_id,),
+            )
+        return row
 
 
 def recover_interrupted(conn, tenant):
