@@ -1,130 +1,220 @@
-# 7. Runtimes, harnesses and sandboxes
+# 7. Runtimes, harnesses, meta-orchestration and sandboxes
 
-## 7.1 Four different things
+## 7.1 Separate the layers
+
+Do not use "agent", "model" and "runtime" as synonyms.
 
 | Layer | Examples | Responsibility |
 | --- | --- | --- |
-| model | Qwen, DeepSeek, Llama, Mistral | generate/reason |
-| inference runtime | Ollama, llama.cpp, vLLM | serve model weights |
-| agent runtime/harness | Hermes, DeepSeek Harness, CLI agents | tool loop, sessions, delegation, context |
-| execution environment | OpenStack VM, container, Kubernetes Job, Slurm allocation | run code and commands |
+| model weights/provider | Qwen, DeepSeek, Mistral, gpt-oss, other local/external models | generation/reasoning |
+| inference runtime/server | vLLM, Ollama, llama.cpp | serve models |
+| agent runtime/harness | Hermes, LangGraph, Letta, PydanticAI, Agent Framework, smolagents, OpenHands, Goose | agent loop, native sessions, tool protocol, workflow semantics |
+| meta-orchestrator | Paperclip or future coordinator | select/coordinate allowed specialist runtimes |
+| execution environment | container, OpenStack sandbox, Kubernetes Job, Slurm allocation, QPU provider | execute code/scientific work |
+| control plane | ACP | canonical context, identity references, policy, run/audit history, portable contracts |
 
-An agent runtime can be a small CPU service using a model served remotely on H200 and tools running
-in a third environment.
+One physical task may span every row.
 
-## 7.2 Hermes-first integration
+## 7.2 Hermes first, not Hermes forever
 
-Hermes is the initial full runtime because its current programmatic surfaces already cover:
+Hermes is the first full runtime integration because it provides a useful agent loop, sessions, skills/memory/profile concepts and programmable integration.
 
-- OpenAI-compatible chat/responses;
-- stateful runs and SSE lifecycle events;
-- stop, steer and approval operations;
-- persistent sessions, memory and skills;
-- tool use and subagent delegation;
-- profiles and messaging gateways;
-- multiple execution backends.
+ACP maps portable identifiers to Hermes-native ones:
 
-The adapter stores a mapping:
+~~~text
+ACP principal/project/conversation/task/run
+                   |
+                   v
+       Hermes profile/session/run
+~~~
 
-```text
-control-plane task/run/conversation
-               ↕
-Hermes run/session/profile
-```
+Hermes does not become the source of Quantum Platform identity or ACP canonical conversation history.
 
-Hermes never becomes the source of platform identity or global policy. The control plane validates
-each privileged tool request even if Hermes also has a local approval feature.
+M4a must remain correct even if runtime-local session/cache state is lost.
 
-## 7.3 Adapter contract
+M4e later makes persistent Hermes profiles a richer optimisation/user experience.
 
-Every runtime adapter should implement:
+## 7.3 Other runtime/harness options
+
+ACP should remain compatible with multiple styles of runtime.
+
+### LangGraph
+
+Useful where explicit graph/state-machine orchestration and durable execution/checkpoint concepts are valuable.
+
+### Letta
+
+Useful for experimenting with strongly stateful/memory-centric agents.
+
+Letta-native memory is runtime state from ACP's perspective unless explicitly promoted through ACP's memory contract.
+
+### PydanticAI
+
+Useful for typed Python agent applications, structured outputs and model-provider portability.
+
+### Microsoft Agent Framework
+
+Useful for agent/workflow orchestration and heterogeneous provider integration. It can be evaluated as a runtime/workflow adapter rather than a replacement for ACP.
+
+### Hugging Face smolagents
+
+Useful for compact research/specialist agents and experiments with local/open model backends.
+
+### OpenHands
+
+Useful as a specialised software-engineering/coding runtime, particularly when paired with isolated workspaces/sandboxes.
+
+### Goose
+
+Useful for developer/terminal-oriented agent workflows and extension-driven tooling.
+
+### Simple ACP-native workers
+
+Not every task needs a framework. A deterministic worker or direct-model adapter can be safer and easier to operate for narrow capabilities.
+
+## 7.4 Paperclip boundary
+
+Paperclip is a planned meta-harness/meta-orchestration layer.
+
+Its role is potentially:
+
+- select a specialist runtime/agent;
+- coordinate multiple specialists;
+- manage higher-level task decomposition;
+- compare/review candidate work;
+- route between available harnesses.
+
+Its role is **not**:
+
+- canonical database;
+- identity provider;
+- memory authority;
+- policy authority;
+- scheduler;
+- secret store.
+
+Conceptually:
+
+~~~text
+                 Paperclip
+        meta coordination / routing
+                     |
+                     v
+             Agent Control Plane
+        context + policy + durable state
+                     |
+     +---------------+----------------+
+     |               |                |
+   Hermes        OpenHands          Letta
+   LangGraph     Goose              PydanticAI
+   Agent FW      smolagents         future adapters
+~~~
+
+If implementation constraints later require Paperclip to call ACP rather than sit logically above it, the authority boundary stays the same: ACP remains the durable state/policy substrate.
+
+## 7.5 Herdr, Herder and developer supervision
+
+Herdr can supervise interactive/local/remote terminal agents and is useful developer ergonomics.
+
+A Herder-style queued CLI supervisor may be useful when ACP needs a bounded external worker fleet.
+
+Neither should silently introduce a second authoritative task ledger. Adapter IDs and status must correlate back to ACP task/run records.
+
+## 7.6 Heretic
+
+Heretic belongs to model engineering/weight modification and evaluation.
+
+A modified model must be registered as a distinct model artifact with provenance, licence, evaluation and policy metadata.
+
+It is not an agent memory/orchestration system.
+
+## 7.7 Adapter contract
+
+Every runtime adapter should converge on portable operations such as:
 
 - capability discovery;
-- create/resume/branch/stop session;
-- submit input and stream normalised events;
-- tool/approval request translation;
-- model-pool selection where supported;
-- artifact attachment;
+- start/resume/stop;
+- submit input;
+- stream normalised events;
+- tool/approval translation;
+- artifact/reference attachment;
 - usage/result/error reporting;
-- health and version reporting.
+- runtime version/health;
+- export of runtime-session correlation.
 
-Runtime-specific payloads live below `extensions`; portable clients consume the V1 event contract.
+Runtime-specific fields remain extensions rather than leaking into every client.
 
-## 7.4 DeepSeek Harness
+## 7.8 Context hydration
 
-DeepSeek Harness is promising for plugin-driven experimental coding/research workflows. Its current
-project explicitly labels itself a developer preview with compatibility-breaking changes expected.
-Treat it as an experimental runtime adapter or specialised executor. Do not make production state
-or security policy depend on its internal plugin interfaces yet.
+ACP assembles the authorised context before runtime execution.
 
-## 7.5 Herder
+A runtime should not need direct unrestricted database access.
 
-Herder is a local job supervisor for CLI agents with queueing, roles, fallbacks, concurrency and
-result collection. It may be useful as:
+It receives only the slice required for the task:
 
-- a workstation development adapter;
-- a remote pool of CLI coding workers;
-- an experiment in provider fallback and agent benchmarking.
+~~~text
+principal + tenant
+project
+conversation
+retrieved memory
+enabled skills
+task/run context
+capabilities
+logical model choice
+execution allowances
+~~~
 
-It does not replace the control-plane database, Kubernetes, OpenStack sandbox broker or Slurm. Do
-not nest independent retry/queue systems without one clear owner for task state.
+This is the core mechanism for runtime/harness agnosticism.
 
-## 7.6 Heretic correction
+## 7.9 Sandboxes
 
-Heretic is a model-weight modification/abliteration project. It belongs under model engineering and
-controlled evaluation, not under agent memory, skills or orchestration. Any modified model must be
-registered as a distinct artifact with licence, provenance, evaluation and safety metadata.
+Arbitrary generated commands must never run inside ACP API/worker containers.
 
-## 7.7 Sandbox broker
+A sandbox request declares:
 
-Never run arbitrary agent-generated commands in the API or Hermes control-plane container. A
-sandbox request includes:
+- subject/project/task/run;
+- immutable source commit;
+- writable worktree/branch;
+- image digest;
+- CPU/memory/GPU/disk/time limits;
+- egress policy;
+- allowed secret references;
+- command/tool family;
+- artifact contract;
+- lease/heartbeat/cleanup.
 
-- task/run/tenant/subject IDs;
-- immutable source repository and commit;
-- writable worktree/branch destination;
-- base image digest;
-- CPU, memory, GPU, wall-clock and disk limits;
-- egress/DNS policy;
-- allowed secret *references* and injection destinations;
-- allowed command/tool family;
-- artifact/output contract;
-- lease, heartbeat and cleanup policy.
+The broker returns an opaque execution ID. The sandbox never receives ACP database-owner credentials.
 
-The broker creates an isolated OpenStack VM, container, Kubernetes Job or Slurm allocation and
-returns an opaque execution ID. Workers do not receive control-plane database credentials.
+## 7.10 Repository modification workflow
 
-## 7.8 Repository modification workflow
+~~~text
+approved source revision
+       |
+isolated worktree/sandbox
+       |
+agent change + tests
+       |
+patch / agent/* branch
+       |
+CI + human/agent review
+       |
+authorised merge
+       |
+GitOps / Terraform / Ansible authority
+~~~
 
-```text
-read-only clone at approved commit
-        ↓
-isolated worktree/branch
-        ↓
-agent changes + tests + evidence
-        ↓
-patch / branch proposal
-        ↓
-human and CI review
-        ↓
-merge by authorised Git identity
-        ↓
-Argo CD / Terraform / Ansible authority
-```
+Agents follow the same protected branch discipline as humans. They do not get a privileged path around review.
 
-The first production capability should stop at patch generation. Later, a dedicated Git service
-principal may push only `agent/*` branches after plan approval. It still cannot merge protected
-branches.
+## 7.11 Tool services over raw credentials
 
-## 7.9 Tool services over raw credentials
+Prefer narrow validated interfaces:
 
-Prefer a narrow service such as:
-
-```text
-GET /tools/kubernetes/pods?namespace=monitoring
-POST /tools/slurm/validate
+~~~text
+GET  /tools/kubernetes/pods
 POST /tools/prometheus/query-template/platform-health
-```
+POST /tools/slurm/submit-offering
+~~~
 
-over giving each agent a kubeconfig, SSH key or unrestricted Prometheus query. This creates stable
-validation, redaction, rate limiting and audit boundaries.
+over giving a runtime unrestricted kubeconfig, SSH keys or raw provider credentials.
+
+Stable tool services create a place for validation, redaction, rate limits, capability checks and audit.
