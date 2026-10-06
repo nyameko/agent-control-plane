@@ -5,7 +5,6 @@ import os
 import sys
 from pathlib import Path
 
-from agent_control_plane.hermes_runtime import HERMES_REVISION
 
 PERSONAL_SOUL = """You are a personal research and engineering assistant for Quantum Platform.
 The conversation supplied by Agent Control Plane is the canonical conversation history for this
