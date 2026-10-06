@@ -88,4 +88,5 @@ CREATE POLICY personal_message ON acp1.message
         AND owner_subject = current_setting('acp.subject_id', true)
     );
 
-GRANT SELECT, INSERT ON acp1.project, acp1.conversation, acp1.message TO acp_app;
+GRANT SELECT, INSERT, UPDATE ON acp1.project, acp1.conversation TO acp_app;
+GRANT SELECT, INSERT ON acp1.message TO acp_app;
