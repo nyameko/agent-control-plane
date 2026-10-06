@@ -55,7 +55,7 @@ CREATE UNIQUE INDEX task_personal_input_unique
     WHERE kind = 'personal_turn';
 
 ALTER TABLE acp1.run
-    DROP CONSTRAINT IF EXISTS run_check,
+    DROP CONSTRAINT IF EXISTS run_check1,
     DROP CONSTRAINT IF EXISTS run_profile_check;
 ALTER TABLE acp1.run
     ADD CONSTRAINT run_profile_check
