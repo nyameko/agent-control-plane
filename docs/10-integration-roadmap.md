@@ -83,7 +83,7 @@ Ubiquitous researcher-facing ACP agent UI.
 
 ### M4g — SSH Enterprise Client
 
-Terminal attach/resume/create/list/run experience.
+Terminal attach/resume/create/list/run experience, with future VS Code Server/remote-development clients attaching to the same AgentPrincipal/project/conversation state.
 
 ## 10.4 Multi-runtime ecosystem
 
