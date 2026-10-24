@@ -8,6 +8,7 @@ The same conversation should be usable from:
 - Jupyter/JupyterLab;
 - SSH/TUI;
 - Spacemacs/gptel;
+- future VS Code Server / Remote development clients;
 - future desktop/mobile/API clients;
 - linked Telegram/Discord channels where policy allows.
 
@@ -18,6 +19,7 @@ Quantum Platform ─┐
 Jupyter ──────────┤
 SSH/TUI ──────────┼──> ACP canonical conversation
 gptel ────────────┤
+VS Code Server ───┤
 API ──────────────┘
 ~~~
 
@@ -76,7 +78,15 @@ The editor may also expose direct-model sessions for disposable work. Those shou
 
 Credentials belong in secure local credential mechanisms such as auth-source, not checked-in configuration.
 
-## 8.7 External messaging
+## 8.7 VS Code Server / remote development clients
+
+A future VS Code Server integration should behave like Jupyter and gptel: it is a client of ACP, not a separate agent-memory system.
+
+The remote IDE may attach a workspace, terminal and editor session to an existing ACP project/conversation, surface run/task status, and invoke approved coding/research agents. Closing or rebuilding the VS Code Server process must not change canonical conversation, memory, project or task/run ownership.
+
+Authentication should resolve to the same immutable Quantum Platform AgentPrincipal UUID used by web, Jupyter, SSH/TUI and gptel. Workspace/process identity and POSIX UID/GID remain execution attributes.
+
+## 8.8 External messaging
 
 Telegram/Discord should be channel adapters into ACP, never parallel agent systems.
 
@@ -84,7 +94,7 @@ Account linking must be explicit and authenticated.
 
 A display name, handle or server role is not sufficient proof of Quantum Platform identity.
 
-## 8.8 Channel policy
+## 8.9 Channel policy
 
 External channels need:
 
@@ -98,7 +108,7 @@ External channels need:
 
 High-impact approvals should deep-link back to a trusted authenticated platform surface.
 
-## 8.9 Notifications
+## 8.10 Notifications
 
 Notify for things that need attention:
 
