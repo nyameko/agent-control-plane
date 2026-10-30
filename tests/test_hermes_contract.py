@@ -199,6 +199,10 @@ def test_personal_runtime_hydrates_canonical_transcript_with_no_tools(tmp_path, 
         f"http://127.0.0.1:{server.server_port}/v1",
     )
     monkeypatch.setenv("ACP_RUN_TIMEOUT_SECONDS", "30")
+    monkeypatch.setenv(
+        "ACP_PERSONAL_MODEL_EXTRA_BODY_JSON",
+        '{"chat_template_kwargs":{"enable_thinking":false}}',
+    )
     (tmp_path / "config.yaml").write_text(PROFILE_CONFIG)
 
     context = {
@@ -231,6 +235,10 @@ def test_personal_runtime_hydrates_canonical_transcript_with_no_tools(tmp_path, 
         assert response == "The marker was ACP-PERSIST-7F31."
         assert calls
         assert all(not call.get("tools") for call in calls)
+        assert all(
+            call.get("chat_template_kwargs") == {"enable_thinking": False}
+            for call in calls
+        )
         rendered = json.dumps(calls)
         assert "ACP-PERSIST-7F31" in rendered
     finally:

@@ -21,6 +21,12 @@ def respond(context, session_id):
     state = SessionDB(home / "state.db")
     agent = None
     try:
+        # Model-specific OpenAI-compatible fields are supplied by the deployment.
+        # The M4a personal adapter itself stays independent of the model vendor.
+        extra_body_text = os.environ.get("ACP_PERSONAL_MODEL_EXTRA_BODY_JSON", "").strip()
+        extra_body = json.loads(extra_body_text) if extra_body_text else {}
+        if not isinstance(extra_body, dict):
+            raise ValueError("ACP_PERSONAL_MODEL_EXTRA_BODY_JSON must be a JSON object")
         transcript = [
             {
                 "role": item["author_kind"],
@@ -45,6 +51,7 @@ def respond(context, session_id):
             disabled_toolsets=[],
             max_iterations=1,
             max_tokens=1600,
+            request_overrides={"extra_body": extra_body} if extra_body else None,
             skip_context_files=True,
             load_soul_identity=False,
             skip_memory=True,

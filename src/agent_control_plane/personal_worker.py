@@ -55,6 +55,9 @@ def run_hermes(conn, settings, run, context):
             "ACP_MODEL": settings.model,
             "ACP_MODEL_BASE_URL": settings.model_base_url,
             "ACP_MODEL_API_KEY": os.environ["ACP_MODEL_API_KEY"],
+            "ACP_PERSONAL_MODEL_EXTRA_BODY_JSON": os.environ.get(
+                "ACP_PERSONAL_MODEL_EXTRA_BODY_JSON", ""
+            ),
             "ACP_RUN_TIMEOUT_SECONDS": str(settings.run_timeout),
         }
         process = subprocess.Popen(
