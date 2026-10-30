@@ -68,7 +68,7 @@ def test_approved_memory_cross_conversation_and_revocation(database, config):
                 "INSERT INTO acp1.memory_revision "
                 "(memory_id,tenant,owner_subject,revision,event_type,body,actor_subject)"
                 " VALUES (%s,%s,%s,3,'revoked',NULL,%s)",
-                (memory_id, owner.tenant, owner.subject),
+                (memory_id, owner.tenant, owner.subject, owner.subject),
             )
             conn.execute(
                 "UPDATE acp1.memory_item SET status='revoked',revoked_at=now(),"
