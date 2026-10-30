@@ -10,6 +10,7 @@ MIGRATIONS = (
     (1, "schema.sql"),
     (2, "migrations/0002_m4a_personal_agent.sql"),
     (3, "migrations/0003_m4a_personal_turn_ledger.sql"),
+    (4, "migrations/0004_m4b_private_memory.sql"),
 )
 
 
