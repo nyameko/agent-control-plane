@@ -18,6 +18,7 @@ class Settings:
     model_base_url: str = ""
     profile_home: str = "/var/lib/hermes/admin-readonly"
     run_timeout: int = 180
+    personal_memory_enabled: bool = False
 
     @classmethod
     def from_env(cls):
@@ -31,6 +32,7 @@ class Settings:
             model_base_url=os.environ.get("ACP_MODEL_BASE_URL", "").rstrip("/"),
             profile_home=os.environ.get("HERMES_HOME", cls.profile_home),
             run_timeout=int(os.environ.get("ACP_RUN_TIMEOUT_SECONDS", "180")),
+            personal_memory_enabled=os.environ.get("ACP_PERSONAL_MEMORY_ENABLED", "0") == "1",
         )
 
     def validate(self, *, worker=False):

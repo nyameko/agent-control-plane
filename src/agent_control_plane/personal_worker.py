@@ -109,7 +109,10 @@ def run_once(conn, settings, *, responder=run_hermes):
     if not run:
         return False
     try:
-        context = db.hydrate_personal_context(conn, settings.tenant, run)
+        context = db.hydrate_personal_context(
+            conn, settings.tenant, run,
+            include_memories=getattr(settings, "personal_memory_enabled", False),
+        )
         response = responder(conn, settings, run, context)
         db.finish_personal(conn, settings.tenant, run, response)
     except PersonalRuntimeFailure as exc:
