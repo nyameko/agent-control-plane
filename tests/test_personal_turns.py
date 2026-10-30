@@ -6,6 +6,8 @@ from agent_control_plane.auth import Principal
 from agent_control_plane.personal_worker import (
     PROFILE_CONFIG,
     _personal_subprocess_environment,
+)
+from agent_control_plane.personal_worker import (
     run_once as run_personal_once,
 )
 
