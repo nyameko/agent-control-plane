@@ -6,7 +6,7 @@ All reads and writes run within the signed principal's PostgreSQL RLS scope.
 import hashlib
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from agent_control_plane import db
@@ -77,7 +77,7 @@ def create_candidate(conn, principal, key, request):
     data = request.model_dump(mode="json")
     payload_digest = _digest(data)
     _safe_text(request.body)
-    if request.expires_at is not None and request.expires_at <= datetime.now(timezone.utc):
+    if request.expires_at is not None and request.expires_at <= datetime.now(UTC):
         raise MemoryInvalid("Expiration must be in the future")
 
     with db.scoped(conn, principal.tenant, principal.subject):
@@ -146,7 +146,7 @@ def transition(conn, principal, memory_id, expected_revision, action, *, body=No
             raise MemoryConflict
         status = current["status"]
         if action == "approved" and status == "candidate":
-            if current["expires_at"] and current["expires_at"] <= datetime.now(timezone.utc):
+            if current["expires_at"] and current["expires_at"] <= datetime.now(UTC):
                 raise MemoryConflict
             text = _safe_text(body if body is not None else current["body"])
             assignment = "status='active',approved_at=now()"
