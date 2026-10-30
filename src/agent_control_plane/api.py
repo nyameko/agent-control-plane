@@ -1,6 +1,8 @@
 """Authenticated ACP APIs for bounded admin work and M4a personal continuity."""
 
 from contextlib import asynccontextmanager
+from datetime import datetime
+
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -8,7 +10,7 @@ import psycopg
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
-from agent_control_plane import __version__, db
+from agent_control_plane import __version__, db, memory
 from agent_control_plane.auth import Principal, require_admin, require_personal
 from agent_control_plane.models import ExecutionPlan, TaskRequest
 from agent_control_plane.routing import plan_task
@@ -44,6 +46,32 @@ class TurnCreate(BaseModel):
     content: dict | list | str
     source_channel: Literal["web", "jupyter", "ssh", "gptel", "api"]
     client_message_id: str | None = Field(default=None, max_length=200)
+
+
+class MemoryCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    source_conversation_id: UUID
+    source_message_id: UUID
+    kind: Literal["preference", "episodic", "semantic", "project_note"]
+    body: str = Field(min_length=1, max_length=2000)
+    sensitivity: Literal["internal", "confidential"] = "internal"
+    expires_at: datetime | None = None
+
+
+class MemoryApprove(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    body: str | None = Field(default=None, min_length=1, max_length=2000)
+
+
+class MemoryCorrect(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    body: str = Field(min_length=1, max_length=2000)
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class MemoryRevoke(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reason: str | None = Field(default=None, max_length=500)
 
 
 Admin = Annotated[Principal, Depends(require_admin)]
@@ -214,6 +242,109 @@ def create_app(settings=None):
         if result is None:
             raise HTTPException(404, "Run not found")
         return result
+
+    def memory_call(operation):
+        try:
+            return operation()
+        except memory.MemoryMissing:
+            raise HTTPException(404, "Memory or source not found") from None
+        except memory.MemoryConflict:
+            raise HTTPException(409, "Memory revision or idempotency conflict") from None
+        except memory.MemoryInvalid as exc:
+            raise HTTPException(422, str(exc)) from None
+        except memory.MemoryUnavailable:
+            raise HTTPException(503, "Memory schema v4 is not available") from None
+
+    def expected_memory_revision(if_match: str):
+        if not if_match.startswith('"') or not if_match.endswith('"'):
+            raise HTTPException(422, 'If-Match must be a quoted revision number')
+        number = if_match[1:-1]
+        if not number.isdecimal() or int(number) < 1:
+            raise HTTPException(422, 'Invalid memory revision')
+        return int(number)
+
+    @app.post("/v1/memories/candidates", status_code=201)
+    def memory_candidate(
+        request: MemoryCandidate,
+        principal: Personal,
+        response: Response,
+        idempotency_key: Annotated[UUID, Header()],
+    ):
+        with db.connection(configured.database_url) as conn:
+            record, created = memory_call(
+                lambda: memory.create_candidate(conn, principal, idempotency_key, request)
+            )
+        response.status_code = 201 if created else 200
+        return record
+
+    @app.get("/v1/memories/retrieve")
+    def memory_retrieve(
+        principal: Personal,
+        limit: Annotated[int, Query(ge=1, le=8)] = 8,
+    ):
+        with db.connection(configured.database_url) as conn:
+            records = memory_call(lambda: memory.retrieve(conn, principal, limit))
+        return {"items": records}
+
+    @app.get("/v1/memories")
+    def memory_list(
+        principal: Personal,
+        status: Literal["candidate", "active", "revoked"] | None = None,
+    ):
+        with db.connection(configured.database_url) as conn:
+            records = memory_call(lambda: memory.list_memories(conn, principal, status))
+        return {"items": records}
+
+    @app.get("/v1/memories/{memory_id}")
+    def memory_detail(memory_id: UUID, principal: Personal):
+        with db.connection(configured.database_url) as conn:
+            return memory_call(lambda: memory.get_memory(conn, principal, memory_id))
+
+    @app.post("/v1/memories/{memory_id}/approve")
+    def memory_approve(
+        memory_id: UUID,
+        request: MemoryApprove,
+        principal: Personal,
+        if_match: Annotated[str, Header()],
+    ):
+        revision = expected_memory_revision(if_match)
+        with db.connection(configured.database_url) as conn:
+            return memory_call(
+                lambda: memory.transition(
+                    conn, principal, memory_id, revision, "approved", body=request.body
+                )
+            )
+
+    @app.patch("/v1/memories/{memory_id}")
+    def memory_correct(
+        memory_id: UUID,
+        request: MemoryCorrect,
+        principal: Personal,
+        if_match: Annotated[str, Header()],
+    ):
+        revision = expected_memory_revision(if_match)
+        with db.connection(configured.database_url) as conn:
+            return memory_call(
+                lambda: memory.transition(
+                    conn, principal, memory_id, revision, "corrected",
+                    body=request.body, reason=request.reason,
+                )
+            )
+
+    @app.post("/v1/memories/{memory_id}/revoke")
+    def memory_revoke(
+        memory_id: UUID,
+        request: MemoryRevoke,
+        principal: Personal,
+        if_match: Annotated[str, Header()],
+    ):
+        revision = expected_memory_revision(if_match)
+        with db.connection(configured.database_url) as conn:
+            return memory_call(
+                lambda: memory.transition(
+                    conn, principal, memory_id, revision, "revoked", reason=request.reason
+                )
+            )
 
     return app
 
