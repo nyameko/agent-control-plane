@@ -109,10 +109,10 @@ def test_schema_v4_and_forced_rls_isolate_user_and_tenant(database):
                 "SELECT count(*) AS n FROM acp1.memory_revision"
             ).fetchone()["n"] == 1
         policies = conn.execute(
-            "SELECT tablename,relrowsecurity,relforcerowsecurity "
-            "FROM pg_tables JOIN pg_class ON pg_class.relname=pg_tables.tablename "
-            "WHERE schemaname='acp1' "
-            "AND tablename IN ('memory_item','memory_revision')"
+            "SELECT c.relname,c.relrowsecurity,c.relforcerowsecurity "
+            "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
+            "WHERE n.nspname='acp1' "
+            "AND c.relname IN ('memory_item','memory_revision')"
         ).fetchall()
         assert len(policies) == 2
         assert all(p["relrowsecurity"] and p["relforcerowsecurity"] for p in policies)
