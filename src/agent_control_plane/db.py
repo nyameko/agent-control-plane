@@ -449,7 +449,7 @@ def claim_personal(conn, settings, revision):
         return row
 
 
-def hydrate_personal_context(conn, tenant, run):
+def hydrate_personal_context(conn, tenant, run, *, include_memories=False):
     with scoped(conn, tenant, run["requested_by"]):
         conversation = conn.execute(
             "SELECT id,project_id,title,owner_subject FROM acp1.conversation "
@@ -469,7 +469,36 @@ def hydrate_personal_context(conn, tenant, run):
             "FROM acp1.message WHERE conversation_id=%s AND sequence<=%s ORDER BY sequence",
             (run["conversation_id"], input_message["sequence"]),
         ).fetchall()
-        return {"conversation": conversation, "messages": messages}
+        context = {"conversation": conversation, "messages": messages}
+        if include_memories:
+            # Fail closed when the memory feature is enabled without schema v4.
+            from agent_control_plane import memory
+
+            memory._check_v4(conn)
+            rows = conn.execute(
+                memory._SNAPSHOT
+                + "WHERE i.scope_kind='private_user' AND i.status='active' "
+                "AND i.approved_at IS NOT NULL "
+                "AND (i.expires_at IS NULL OR i.expires_at > now()) "
+                "AND r.body IS NOT NULL "
+                "ORDER BY i.updated_at DESC,i.id DESC LIMIT 100"
+            ).fetchall()
+            selected, total = [], 0
+            for row in rows:
+                size = len(row["body"])
+                if total + size > 6000:
+                    continue
+                selected.append({
+                    key: row[key] for key in (
+                        "id", "revision", "kind", "body", "source_conversation_id",
+                        "source_message_id", "verification_status", "expires_at",
+                    )
+                })
+                total += size
+                if len(selected) == 8:
+                    break
+            context["memories"] = selected
+        return context
 
 
 def finish_personal(conn, tenant, run, response, *, failure=None):
