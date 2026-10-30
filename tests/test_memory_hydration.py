@@ -1,14 +1,13 @@
 """M4b opt-in memory context for a fresh conversation and ephemeral Hermes."""
-from uuid import uuid4
 from types import SimpleNamespace
+from uuid import uuid4
 
 from agent_control_plane import db
 from agent_control_plane.auth import Principal
 from agent_control_plane.personal_worker import run_once
 
 
-def test_approved_memory_cross_conversation_and_revocation(database, client, token, config):
-    headers = token(scope="agent:personal")
+def test_approved_memory_cross_conversation_and_revocation(database, config):
     owner = Principal(f"urn:quantum-platform:user:{uuid4()}", "nyameko")
     with db.connection(database) as conn:
         c1 = db.create_conversation(conn, owner, "Original research")
