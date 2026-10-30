@@ -1,8 +1,13 @@
+from types import SimpleNamespace
 from uuid import uuid4
 
 from agent_control_plane import db
 from agent_control_plane.auth import Principal
-from agent_control_plane.personal_worker import run_once as run_personal_once
+from agent_control_plane.personal_worker import (
+    PROFILE_CONFIG,
+    _personal_subprocess_environment,
+    run_once as run_personal_once,
+)
 
 
 def _conversation(client, headers):
@@ -170,3 +175,23 @@ def test_interrupted_personal_run_is_terminal_but_history_survives(
         headers=headers,
     ).json()
     assert detail["messages"][0]["content"] == "survive worker loss"
+
+def test_personal_hermes_subprocess_cannot_lazy_install_dependencies(monkeypatch, tmp_path):
+    monkeypatch.setenv("ACP_MODEL_API_KEY", "test-only-key")
+    monkeypatch.setenv(
+        "ACP_PERSONAL_MODEL_EXTRA_BODY_JSON",
+        '{"chat_template_kwargs":{"enable_thinking":false}}',
+    )
+    settings = SimpleNamespace(
+        model="test-model",
+        model_base_url="http://localhost:4000/v1",
+        run_timeout=180,
+    )
+    environment = _personal_subprocess_environment(settings, tmp_path)
+
+    assert environment["HERMES_DISABLE_LAZY_INSTALLS"] == "1"
+    assert environment["HERMES_HOME"] == str(tmp_path)
+    assert environment["ACP_MODEL_API_KEY"] == "test-only-key"
+    assert environment["ACP_PERSONAL_MODEL_EXTRA_BODY_JSON"]
+    assert "security:\n  allow_lazy_installs: false\n" in PROFILE_CONFIG
+    assert "HERMES_LAZY_INSTALL_TARGET" not in environment
