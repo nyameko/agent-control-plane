@@ -21,6 +21,8 @@ PROFILE_CONFIG = """plugins:
 memory:
   memory_enabled: false
   user_profile_enabled: false
+security:
+  allow_lazy_installs: false
 """
 
 
@@ -31,6 +33,25 @@ class PersonalRuntimeFailure(Exception):
 def heartbeat(conn):
     conn.execute("SELECT 1")
     Path("/tmp/acp-personal-worker-heartbeat").touch()
+
+
+def _personal_subprocess_environment(settings, profile):
+    # Hermes imports optional providers even for an explicit custom endpoint.
+    # Never permit a live M4a personal turn to invoke pip/uv at runtime.
+    return {
+        "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+        "PYTHONUNBUFFERED": "1",
+        "HERMES_HOME": str(profile),
+        "HERMES_ENABLE_PROJECT_PLUGINS": "0",
+        "HERMES_DISABLE_LAZY_INSTALLS": "1",
+        "ACP_MODEL": settings.model,
+        "ACP_MODEL_BASE_URL": settings.model_base_url,
+        "ACP_MODEL_API_KEY": os.environ["ACP_MODEL_API_KEY"],
+        "ACP_PERSONAL_MODEL_EXTRA_BODY_JSON": os.environ.get(
+            "ACP_PERSONAL_MODEL_EXTRA_BODY_JSON", ""
+        ),
+        "ACP_RUN_TIMEOUT_SECONDS": str(settings.run_timeout),
+    }
 
 
 def run_hermes(conn, settings, run, context):
@@ -47,19 +68,7 @@ def run_hermes(conn, settings, run, context):
                 default=str,
             )
         )
-        environment = {
-            "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
-            "PYTHONUNBUFFERED": "1",
-            "HERMES_HOME": str(profile),
-            "HERMES_ENABLE_PROJECT_PLUGINS": "0",
-            "ACP_MODEL": settings.model,
-            "ACP_MODEL_BASE_URL": settings.model_base_url,
-            "ACP_MODEL_API_KEY": os.environ["ACP_MODEL_API_KEY"],
-            "ACP_PERSONAL_MODEL_EXTRA_BODY_JSON": os.environ.get(
-                "ACP_PERSONAL_MODEL_EXTRA_BODY_JSON", ""
-            ),
-            "ACP_RUN_TIMEOUT_SECONDS": str(settings.run_timeout),
-        }
+        environment = _personal_subprocess_environment(settings, profile)
         process = subprocess.Popen(
             [
                 sys.executable,
