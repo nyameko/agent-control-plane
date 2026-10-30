@@ -11,6 +11,7 @@ WORKER_LOCK = (174092, 2)
 PERSONAL_WORKER_LOCK = (174092, 3)
 DIAGNOSTIC = "quantum-platform-pod-readiness"
 SCHEMA_VERSION = 3
+COMPATIBLE_SCHEMA_VERSIONS = frozenset({3, 4})
 FIELDS = """
  t.id AS task_id, t.tenant, t.requested_by, t.kind, t.diagnostic,
  t.conversation_id, t.input_message_id, t.created_at,
@@ -46,7 +47,7 @@ def ready(conn):
     version = conn.execute(
         "SELECT version FROM acp1.schema_version ORDER BY version DESC LIMIT 1"
     ).fetchone()
-    if version != {"version": SCHEMA_VERSION}:
+    if version is None or version["version"] not in COMPATIBLE_SCHEMA_VERSIONS:
         raise RuntimeError("Database migration is required")
 
 
