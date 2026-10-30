@@ -235,9 +235,14 @@ def test_personal_runtime_hydrates_canonical_transcript_with_no_tools(tmp_path, 
         assert response == "The marker was ACP-PERSIST-7F31."
         assert calls
         assert all(not call.get("tools") for call in calls)
+        # Hermes may issue auxiliary non-streaming title-generation requests
+        # in addition to the streamed personal-agent turn. Assert the actual
+        # streamed conversation request receives the model-specific override.
+        streamed_calls = [call for call in calls if call.get("stream") is True]
+        assert streamed_calls
         assert all(
             call.get("chat_template_kwargs") == {"enable_thinking": False}
-            for call in calls
+            for call in streamed_calls
         )
         rendered = json.dumps(calls)
         assert "ACP-PERSIST-7F31" in rendered
