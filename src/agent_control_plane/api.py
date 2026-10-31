@@ -32,6 +32,25 @@ class ConversationCreate(BaseModel):
     project_id: UUID | None = None
 
 
+class ProjectPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    archived: bool | None = None
+
+
+class ConversationPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    project_id: UUID | None = None
+    archived: bool | None = None
+
+
+def _workspace_if_match(value: str) -> str:
+    if len(value) > 100 or not (value.startswith('"') and value.endswith('"')):
+        raise HTTPException(422, 'If-Match must be a quoted current updated_at')
+    return value
+
+
 class MessageCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     author_kind: Literal["user"]
@@ -163,6 +182,72 @@ def create_app(settings=None):
     def projects(principal: Personal):
         with db.connection(configured.database_url) as conn:
             return {"items": db.list_projects(conn, principal)}
+
+    @app.get("/v1/projects/{project_id}")
+    def project(project_id: UUID, principal: Personal, response: Response):
+        with db.connection(configured.database_url) as conn:
+            result = db.get_project(conn, principal, project_id)
+        if result is None:
+            raise HTTPException(404, "Project not found")
+        response.headers["ETag"] = db._workspace_etag(result)
+        return result
+
+    @app.patch("/v1/projects/{project_id}")
+    def patch_project(
+        project_id: UUID,
+        request: ProjectPatch,
+        principal: Personal,
+        response: Response,
+        if_match: Annotated[str, Header()],
+    ):
+        supplied = request.model_fields_set
+        if not supplied or ("title" in supplied and request.title is None) or (
+            "archived" in supplied and request.archived is None
+        ):
+            raise HTTPException(422, "At least one non-null update is required")
+        try:
+            with db.connection(configured.database_url) as conn:
+                result = db.update_project(
+                    conn, principal, project_id,
+                    if_match=_workspace_if_match(if_match),
+                    title=request.title, archived=request.archived,
+                )
+        except db.WorkspaceStale:
+            raise HTTPException(412, "Workspace has changed; refresh before updating") from None
+        if result is None:
+            raise HTTPException(404, "Project not found")
+        response.headers["ETag"] = db._workspace_etag(result)
+        return result
+
+    @app.patch("/v1/conversations/{conversation_id}")
+    def patch_conversation(
+        conversation_id: UUID,
+        request: ConversationPatch,
+        principal: Personal,
+        response: Response,
+        if_match: Annotated[str, Header()],
+    ):
+        supplied = request.model_fields_set
+        if not supplied or ("title" in supplied and request.title is None) or (
+            "archived" in supplied and request.archived is None
+        ):
+            raise HTTPException(422, "At least one non-null update is required")
+        try:
+            with db.connection(configured.database_url) as conn:
+                result = db.update_conversation(
+                    conn, principal, conversation_id,
+                    if_match=_workspace_if_match(if_match),
+                    title=request.title,
+                    project_present="project_id" in supplied,
+                    project_id=request.project_id,
+                    archived=request.archived,
+                )
+        except db.WorkspaceStale:
+            raise HTTPException(412, "Conversation has changed; refresh before updating") from None
+        if result is None:
+            raise HTTPException(404, "Conversation or target project not found")
+        response.headers["ETag"] = db._workspace_etag(result)
+        return result
 
     @app.post("/v1/conversations", status_code=201)
     def create_conversation(request: ConversationCreate, principal: Personal):
