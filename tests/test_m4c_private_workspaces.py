@@ -35,9 +35,13 @@ def test_private_project_and_conversation_lifecycle_preserves_history(
         },
     )
     assert message.status_code == 201
+    # Appending a message touches both project and conversation updated_at.
+    latest_project = client.get(f"/v1/projects/{first['id']}", headers=headers)
+    latest_chat = client.get(f"/v1/conversations/{chat['id']}", headers=headers)
+    assert latest_project.status_code == latest_chat.status_code == 200
     renamed = client.patch(
         f"/v1/projects/{first['id']}",
-        headers={**headers, "If-Match": _version(first)},
+        headers={**headers, "If-Match": _version(latest_project.json())},
         json={"title": "Research notes"},
     )
     assert renamed.status_code == 200, renamed.text
@@ -52,7 +56,7 @@ def test_private_project_and_conversation_lifecycle_preserves_history(
     assert stale.status_code == 412
     moved = client.patch(
         f"/v1/conversations/{chat['id']}",
-        headers={**headers, "If-Match": _version(chat)},
+        headers={**headers, "If-Match": _version(latest_chat.json())},
         json={"project_id": second["id"], "title": "Bell experiments"},
     )
     assert moved.status_code == 200, moved.text
