@@ -60,7 +60,9 @@ def turn(client, conversation_id, question, *, timeout_seconds):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base-url", required=True, help="Explicit ACP API origin, not the portal UI")
+    parser.add_argument(
+        "--base-url", required=True, help="Explicit ACP API origin, not the portal UI"
+    )
     parser.add_argument("--execute", action="store_true", help="Required to create test data")
     parser.add_argument("--pause-for-restart", action="store_true",
                         help="Manually approved API/worker restart before fresh C2")
