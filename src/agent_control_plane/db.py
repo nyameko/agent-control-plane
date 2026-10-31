@@ -139,6 +139,92 @@ def list_projects(conn, principal):
         ).fetchall()
 
 
+class WorkspaceStale(Exception):
+    """The owner supplied an outdated version of a private workspace."""
+
+
+def _workspace_etag(row):
+    return f'"{row["updated_at"].isoformat()}"'
+
+
+def get_project(conn, principal, project_id):
+    with scoped(conn, principal.tenant, principal.subject):
+        return conn.execute(
+            "SELECT id,title,created_at,updated_at,archived_at "
+            "FROM acp1.project WHERE id=%s",
+            (project_id,),
+        ).fetchone()
+
+
+def update_project(conn, principal, project_id, *, if_match, title=None, archived=None):
+    """Apply an owner-only CAS update without touching the project's conversations."""
+    with scoped(conn, principal.tenant, principal.subject):
+        existing = conn.execute(
+            "SELECT id,updated_at FROM acp1.project WHERE id=%s FOR UPDATE",
+            (project_id,),
+        ).fetchone()
+        if existing is None:
+            return None
+        if if_match != _workspace_etag(existing):
+            raise WorkspaceStale
+        updates = []
+        values = []
+        if title is not None:
+            updates.append("title=%s")
+            values.append(title)
+        if archived is not None:
+            updates.append("archived_at=clock_timestamp()" if archived else "archived_at=NULL")
+        if not updates:
+            raise ValueError("No project updates")
+        updates.append("updated_at=clock_timestamp()")
+        return conn.execute(
+            "UPDATE acp1.project SET " + ",".join(updates) + " WHERE id=%s "
+            "RETURNING id,title,created_at,updated_at,archived_at",
+            (*values, project_id),
+        ).fetchone()
+
+
+def update_conversation(
+    conn, principal, conversation_id, *, if_match, title=None,
+    project_present=False, project_id=None, archived=None,
+):
+    """Private conversation metadata only; retain messages, runs and memory sources."""
+    with scoped(conn, principal.tenant, principal.subject):
+        existing = conn.execute(
+            "SELECT id,updated_at FROM acp1.conversation WHERE id=%s FOR UPDATE",
+            (conversation_id,),
+        ).fetchone()
+        if existing is None:
+            return None
+        if if_match != _workspace_etag(existing):
+            raise WorkspaceStale
+        updates = []
+        values = []
+        if title is not None:
+            updates.append("title=%s")
+            values.append(title)
+        if project_present:
+            if project_id is not None:
+                project = conn.execute(
+                    "SELECT id FROM acp1.project WHERE id=%s AND archived_at IS NULL",
+                    (project_id,),
+                ).fetchone()
+                if project is None:
+                    return None
+            updates.append("project_id=%s")
+            values.append(project_id)
+        if archived is not None:
+            updates.append("archived_at=clock_timestamp()" if archived else "archived_at=NULL")
+        if not updates:
+            raise ValueError("No conversation updates")
+        updates.append("updated_at=clock_timestamp()")
+        return conn.execute(
+            "UPDATE acp1.conversation SET " + ",".join(updates) + " WHERE id=%s "
+            "RETURNING id,project_id,title,created_at,updated_at,archived_at",
+            (*values, conversation_id),
+        ).fetchone()
+
+
 def create_conversation(conn, principal, title, project_id=None):
     conversation_id = uuid4()
     with scoped(conn, principal.tenant, principal.subject):
