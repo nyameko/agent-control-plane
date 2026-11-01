@@ -783,7 +783,10 @@ def save_personal_profile(
                 "(id,tenant,owner_subject,display_name,instructions,model_route) "
                 "VALUES (%s,%s,%s,%s,%s,%s) "
                 "RETURNING id,display_name,instructions,model_route,revision,created_at,updated_at",
-                (uuid4(), principal.tenant, principal.subject, display_name, instructions, model_route),
+                (
+                    uuid4(), principal.tenant, principal.subject,
+                    display_name, instructions, model_route,
+                ),
             ).fetchone()
         else:
             row = conn.execute(
