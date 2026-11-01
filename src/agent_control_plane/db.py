@@ -700,9 +700,14 @@ def programme_add_message(
     conn, principal, room_id, *, content, source_channel, client_message_id,
 ):
     with programme_scoped(conn, principal):
-        # Row-lock orders simultaneous member posts and bounds max(sequence)+1.
+        # Advisory transaction lock serializes concurrent posts without granting
+        # message writers UPDATE/DELETE privilege on canonical room metadata.
+        conn.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(%s),hashtext(%s))",
+            (principal.tenant, str(room_id)),
+        )
         room = conn.execute(
-            "SELECT id FROM acp1.programme_conversation WHERE id=%s FOR UPDATE",
+            "SELECT id FROM acp1.programme_conversation WHERE id=%s",
             (room_id,),
         ).fetchone()
         if room is None:
