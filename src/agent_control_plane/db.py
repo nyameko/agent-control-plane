@@ -556,6 +556,18 @@ def hydrate_personal_context(conn, tenant, run, *, include_memories=False):
             (run["conversation_id"], input_message["sequence"]),
         ).fetchall()
         context = {"conversation": conversation, "messages": messages}
+        # Profiles are optional until the reviewed v6 migration has been applied.
+        profile_version = conn.execute(
+            "SELECT max(version) AS version FROM acp1.schema_version"
+        ).fetchone()["version"]
+        if profile_version >= 6:
+            profile = conn.execute(
+                "SELECT id,display_name,instructions,model_route,revision "
+                "FROM acp1.personal_profile WHERE owner_subject=%s",
+                (run["requested_by"],),
+            ).fetchone()
+            if profile is not None:
+                context["profile"] = profile
         if include_memories:
             # Fail closed when the memory feature is enabled without schema v4.
             from agent_control_plane import memory
@@ -739,3 +751,47 @@ def programme_add_message(
                 source_channel, client_message_id,
             ),
         ).fetchone()
+
+
+
+def get_personal_profile(conn, principal):
+    """Portable owner-only research preferences, independent of Hermes runtime files."""
+    with scoped(conn, principal.tenant, principal.subject):
+        return conn.execute(
+            "SELECT id,display_name,instructions,model_route,revision,created_at,updated_at "
+            "FROM acp1.personal_profile"
+        ).fetchone()
+
+
+class ProfileStale(Exception):
+    """Optimistic revision conflict for ACP canonical profile."""
+
+
+def save_personal_profile(
+    conn, principal, *, if_match, display_name, instructions, model_route,
+):
+    with scoped(conn, principal.tenant, principal.subject):
+        current = conn.execute(
+            "SELECT id,revision FROM acp1.personal_profile FOR UPDATE"
+        ).fetchone()
+        revision = current["revision"] if current else 0
+        if if_match != revision:
+            raise ProfileStale
+        if current is None:
+            row = conn.execute(
+                "INSERT INTO acp1.personal_profile "
+                "(id,tenant,owner_subject,display_name,instructions,model_route) "
+                "VALUES (%s,%s,%s,%s,%s,%s) "
+                "RETURNING id,display_name,instructions,model_route,revision,created_at,updated_at",
+                (uuid4(), principal.tenant, principal.subject, display_name, instructions, model_route),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "UPDATE acp1.personal_profile "
+                "SET display_name=%s,instructions=%s,model_route=%s,"
+                "revision=revision+1,updated_at=clock_timestamp() "
+                "WHERE id=%s "
+                "RETURNING id,display_name,instructions,model_route,revision,created_at,updated_at",
+                (display_name, instructions, model_route, current["id"]),
+            ).fetchone()
+        return row
