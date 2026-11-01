@@ -12,6 +12,7 @@ MIGRATIONS = (
     (3, "migrations/0003_m4a_personal_turn_ledger.sql"),
     (4, "migrations/0004_m4b_private_memory.sql"),
     (5, "migrations/0005_m4c_programme_rooms.sql"),
+    (6, "migrations/0006_m4e_personal_profile.sql"),
 )
 
 
