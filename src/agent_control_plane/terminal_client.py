@@ -65,7 +65,10 @@ def _format(result, *, json_mode=False):
         lines = []
         for row in messages:
             content = row.get("content")
-            text = content.get("text", "[structured message]") if isinstance(content, dict) else str(content)
+            text = (
+                content.get("text", "[structured message]")
+                if isinstance(content, dict) else str(content)
+            )
             lines.append(f"{row.get('author_kind', 'unknown')}: {text}")
         return "\n".join(lines) or "No messages."
     return json.dumps(result, indent=2, default=str)
