@@ -112,5 +112,5 @@ def test_schema_is_migrated_to_m4a(database):
         versions = conn.execute(
             "SELECT version FROM acp1.schema_version ORDER BY version"
         ).fetchall()
-        assert versions == [{"version": 1}, {"version": 2}, {"version": 3}, {"version": 4}]
+        assert versions == [{"version": i} for i in range(1, 6)]
         db.ready(conn)

@@ -11,7 +11,7 @@ WORKER_LOCK = (174092, 2)
 PERSONAL_WORKER_LOCK = (174092, 3)
 DIAGNOSTIC = "quantum-platform-pod-readiness"
 SCHEMA_VERSION = 3
-COMPATIBLE_SCHEMA_VERSIONS = frozenset({3, 4})
+COMPATIBLE_SCHEMA_VERSIONS = frozenset({3, 4, 5})
 FIELDS = """
  t.id AS task_id, t.tenant, t.requested_by, t.kind, t.diagnostic,
  t.conversation_id, t.input_message_id, t.created_at,
@@ -642,3 +642,100 @@ def finish(conn, tenant, run_id, *, summary=None, failure=None):
         if not changed:
             raise RuntimeError("Run no longer owned by this worker")
         event(conn, tenant, run_id, status, {"code": failure} if failure else {})
+
+
+@contextmanager
+def programme_scoped(conn, principal):
+    """An explicit signed programme assertion is the only path into shared RLS."""
+    if principal.programme_id is None or "agent:programme" not in principal.scopes:
+        raise ValueError("Programme scope required")
+    with scoped(conn, principal.tenant, principal.subject):
+        conn.execute(
+            "SELECT set_config('acp.programme_id',%s,true)",
+            (str(principal.programme_id),),
+        )
+        yield
+
+
+def programme_rooms(conn, principal):
+    with programme_scoped(conn, principal):
+        return conn.execute(
+            "SELECT id,programme_id,title,created_by_subject,created_at "
+            "FROM acp1.programme_conversation "
+            "ORDER BY created_at DESC,id DESC LIMIT 100"
+        ).fetchall()
+
+
+def programme_create_room(conn, principal, title):
+    room_id = uuid4()
+    with programme_scoped(conn, principal):
+        return conn.execute(
+            "INSERT INTO acp1.programme_conversation"
+            "(id,tenant,programme_id,title,created_by_subject) "
+            "VALUES (%s,%s,%s,%s,%s) "
+            "RETURNING id,programme_id,title,created_by_subject,created_at",
+            (room_id, principal.tenant, principal.programme_id, title, principal.subject),
+        ).fetchone()
+
+
+def programme_room_detail(conn, principal, room_id):
+    with programme_scoped(conn, principal):
+        room = conn.execute(
+            "SELECT id,programme_id,title,created_by_subject,created_at "
+            "FROM acp1.programme_conversation WHERE id=%s",
+            (room_id,),
+        ).fetchone()
+        if room is None:
+            return None
+        room["messages"] = conn.execute(
+            "SELECT id,sequence,author_subject,content,source_channel,"
+            "client_message_id,created_at FROM acp1.programme_message "
+            "WHERE conversation_id=%s ORDER BY sequence DESC LIMIT 100",
+            (room_id,),
+        ).fetchall()[::-1]
+        return room
+
+
+def programme_add_message(
+    conn, principal, room_id, *, content, source_channel, client_message_id,
+):
+    with programme_scoped(conn, principal):
+        # Advisory transaction lock serializes concurrent posts without granting
+        # message writers UPDATE/DELETE privilege on canonical room metadata.
+        conn.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(%s),hashtext(%s))",
+            (principal.tenant, str(room_id)),
+        )
+        room = conn.execute(
+            "SELECT id FROM acp1.programme_conversation WHERE id=%s",
+            (room_id,),
+        ).fetchone()
+        if room is None:
+            return None
+        if client_message_id is not None:
+            old = conn.execute(
+                "SELECT id,sequence,author_subject,content,source_channel,"
+                "client_message_id,created_at FROM acp1.programme_message "
+                "WHERE conversation_id=%s AND author_subject=%s AND client_message_id=%s",
+                (room_id, principal.subject, client_message_id),
+            ).fetchone()
+            if old is not None:
+                return old
+        next_sequence = conn.execute(
+            "SELECT COALESCE(MAX(sequence),0)+1 AS sequence "
+            "FROM acp1.programme_message WHERE conversation_id=%s",
+            (room_id,),
+        ).fetchone()["sequence"]
+        return conn.execute(
+            "INSERT INTO acp1.programme_message"
+            "(id,tenant,programme_id,conversation_id,sequence,author_subject,"
+            "content,source_channel,client_message_id) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "RETURNING id,sequence,author_subject,content,source_channel,"
+            "client_message_id,created_at",
+            (
+                uuid4(), principal.tenant, principal.programme_id, room_id,
+                next_sequence, principal.subject, Jsonb(content),
+                source_channel, client_message_id,
+            ),
+        ).fetchone()
