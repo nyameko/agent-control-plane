@@ -62,10 +62,12 @@ def _format(result, *, json_mode=False):
         ) or "No records."
     if isinstance(result, dict) and "messages" in result:
         messages = result["messages"]
-        return "\n".join(
-            f"{row.get('author_kind', 'unknown')}: {row.get('content', {}).get('text', '[structured message]') if isinstance(row.get('content'), dict) else str(row.get('content'))}"
-            for row in messages
-        ) or "No messages."
+        lines = []
+        for row in messages:
+            content = row.get("content")
+            text = content.get("text", "[structured message]") if isinstance(content, dict) else str(content)
+            lines.append(f"{row.get('author_kind', 'unknown')}: {text}")
+        return "\n".join(lines) or "No messages."
     return json.dumps(result, indent=2, default=str)
 
 
@@ -81,7 +83,10 @@ def main(argv=None, *, client_factory=httpx.Client) -> int:
             "projects": "/v1/projects",
             "chats": "/v1/conversations",
             "show": f"/v1/conversations/{args.conversation_id}" if args.command == "show" else "",
-            "send": f"/v1/conversations/{args.conversation_id}/turns" if args.command == "send" else "",
+            "send": (
+                f"/v1/conversations/{args.conversation_id}/turns"
+                if args.command == "send" else ""
+            ),
             "run": f"/v1/runs/{args.run_id}" if args.command == "run" else "",
         }[args.command]
         # Without a trusted identity exchange, no production login-node activation.
@@ -106,7 +111,10 @@ def main(argv=None, *, client_factory=httpx.Client) -> int:
                 client.get(endpoint + url, headers=headers)
             )
         if reply.status_code in {401, 403}:
-            print("Session not authorized or expired. Reauthenticate using the trusted broker.", file=sys.stderr)
+            print(
+                "Session not authorized or expired. Reauthenticate using the trusted broker.",
+                file=sys.stderr,
+            )
             return 3
         if not reply.is_success:
             print(f"ACP request failed (HTTP {reply.status_code}).", file=sys.stderr)
