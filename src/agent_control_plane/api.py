@@ -32,6 +32,13 @@ class ConversationCreate(BaseModel):
     project_id: UUID | None = None
 
 
+class PersonalProfilePut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    display_name: str = Field(min_length=1, max_length=100)
+    instructions: str = Field(default="", max_length=2000)
+    model_route: Literal["general", "reasoning", "coding"] = "general"
+
+
 class ProgrammeRoomCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     title: str = Field(min_length=1, max_length=200)
@@ -186,6 +193,42 @@ def create_app(settings=None):
         if result is None:
             raise HTTPException(404, "Task not found")
         return result
+
+    @app.get("/v1/profile")
+    def personal_profile(principal: Personal):
+        with db.connection(configured.database_url) as conn:
+            try:
+                profile = db.get_personal_profile(conn, principal)
+            except psycopg.errors.UndefinedTable:
+                raise HTTPException(503, "Personal profile schema is not available") from None
+        return {"profile": profile}
+
+    @app.put("/v1/profile")
+    def update_personal_profile(
+        request: PersonalProfilePut,
+        principal: Personal,
+        response: Response,
+        if_match: Annotated[str, Header()],
+    ):
+        if not if_match.startswith('"') or not if_match.endswith('"'):
+            raise HTTPException(422, "If-Match must be a quoted profile revision")
+        value = if_match[1:-1]
+        if not value.isdecimal() or len(value) > 8:
+            raise HTTPException(422, "Invalid profile revision")
+        try:
+            with db.connection(configured.database_url) as conn:
+                profile = db.save_personal_profile(
+                    conn, principal, if_match=int(value),
+                    display_name=request.display_name,
+                    instructions=request.instructions,
+                    model_route=request.model_route,
+                )
+        except db.ProfileStale:
+            raise HTTPException(412, "Profile changed; reload before saving") from None
+        except psycopg.errors.UndefinedTable:
+            raise HTTPException(503, "Personal profile schema is not available") from None
+        response.headers["ETag"] = '"' + str(profile["revision"]) + '"'
+        return profile
 
     @app.post("/v1/projects", status_code=201)
     def create_project(request: ProjectCreate, principal: Personal):
