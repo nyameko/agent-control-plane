@@ -28,6 +28,7 @@ dev = [
 
 [project.scripts]
 agent-control-plane = "agent_control_plane.__main__:main"
+acp = "agent_control_plane.terminal_client:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/agent_control_plane"]
