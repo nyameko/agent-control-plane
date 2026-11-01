@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Res
 from pydantic import BaseModel, ConfigDict, Field
 
 from agent_control_plane import __version__, db, memory
-from agent_control_plane.auth import Principal, require_admin, require_personal
+from agent_control_plane.auth import Principal, require_admin, require_personal, require_programme
 from agent_control_plane.models import ExecutionPlan, TaskRequest
 from agent_control_plane.routing import plan_task
 from agent_control_plane.settings import Settings
@@ -30,6 +30,19 @@ class ConversationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     title: str = Field(min_length=1, max_length=200)
     project_id: UUID | None = None
+
+
+class ProgrammeRoomCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str = Field(min_length=1, max_length=200)
+
+
+class ProgrammeMessageCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    content: dict | list | str
+    source_channel: Literal["web", "jupyter", "ssh", "api"]
+    client_message_id: str | None = Field(default=None, min_length=1, max_length=200)
+
 
 
 class ProjectPatch(BaseModel):
@@ -94,6 +107,7 @@ class MemoryRevoke(BaseModel):
 
 Admin = Annotated[Principal, Depends(require_admin)]
 Personal = Annotated[Principal, Depends(require_personal)]
+Programme = Annotated[Principal, Depends(require_programme)]
 
 
 def create_app(settings=None):
@@ -429,6 +443,56 @@ def create_app(settings=None):
                     conn, principal, memory_id, revision, "revoked", reason=request.reason
                 )
             )
+
+    def programme_guard(principal, programme_id):
+        if principal.programme_id != programme_id:
+            # Never reveal the existence of another programme or its rooms.
+            raise HTTPException(404, "Programme not found")
+
+    @app.get("/v1/programmes/{programme_id}/conversations")
+    def programme_conversations(programme_id: int, principal: Programme):
+        programme_guard(principal, programme_id)
+        with db.connection(configured.database_url) as conn:
+            return {"items": db.programme_rooms(conn, principal)}
+
+    @app.post("/v1/programmes/{programme_id}/conversations", status_code=201)
+    def programme_create_conversation(
+        programme_id: int, request: ProgrammeRoomCreate, principal: Programme,
+    ):
+        programme_guard(principal, programme_id)
+        if principal.programme_role not in {"pi", "admin"}:
+            raise HTTPException(403, "Programme room creation requires PI or delegated admin")
+        with db.connection(configured.database_url) as conn:
+            return db.programme_create_room(conn, principal, request.title)
+
+    @app.get("/v1/programmes/{programme_id}/conversations/{room_id}")
+    def programme_conversation_detail(
+        programme_id: int, room_id: UUID, principal: Programme,
+    ):
+        programme_guard(principal, programme_id)
+        with db.connection(configured.database_url) as conn:
+            result = db.programme_room_detail(conn, principal, room_id)
+        if result is None:
+            raise HTTPException(404, "Programme conversation not found")
+        return result
+
+    @app.post("/v1/programmes/{programme_id}/conversations/{room_id}/messages", status_code=201)
+    def programme_post_message(
+        programme_id: int, room_id: UUID, request: ProgrammeMessageCreate, principal: Programme,
+    ):
+        programme_guard(principal, programme_id)
+        if request.content in ("", [], {}):
+            raise HTTPException(422, "Message content cannot be empty")
+        with db.connection(configured.database_url) as conn:
+            result = db.programme_add_message(
+                conn, principal, room_id,
+                content=request.content,
+                source_channel=request.source_channel,
+                client_message_id=request.client_message_id,
+            )
+        if result is None:
+            raise HTTPException(404, "Programme conversation not found")
+        return result
 
     return app
 
