@@ -2,8 +2,6 @@
 
 from uuid import uuid4
 
-import jwt
-
 
 def _claim(token, programme_id, role="researcher", **override):
     return token(
