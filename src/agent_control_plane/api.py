@@ -216,6 +216,10 @@ def create_app(settings=None):
         if not value.isdecimal() or len(value) > 8:
             raise HTTPException(422, "Invalid profile revision")
         try:
+            memory._safe_text(request.instructions)
+        except memory.MemoryInvalid:
+            raise HTTPException(422, "Profile notes may not contain credentials") from None
+        try:
             with db.connection(configured.database_url) as conn:
                 profile = db.save_personal_profile(
                     conn, principal, if_match=int(value),
