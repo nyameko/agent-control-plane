@@ -2,8 +2,6 @@
 
 from uuid import uuid4
 
-from agent_control_plane import db
-
 
 def test_profile_is_owner_only_revisioned_and_survives_new_connection(database, client, token):
     owner = token(scope="agent:personal")
@@ -41,11 +39,7 @@ def test_profile_is_owner_only_revisioned_and_survives_new_connection(database, 
     assert revised.status_code == 200, revised.text
     assert revised.json()["id"] == profile["id"]
     assert revised.json()["revision"] == 2
-    # A newly opened DB connection sees canonical data, not a worker profile home.
-    principal = type("Owner", (), {
-        "subject": revised.json().get("owner_subject"),
-    })
-    assert principal  # owner identity is verified by signed API in the GET above
+    # The next authenticated API read uses a fresh database connection.
     assert client.get("/v1/profile", headers=owner).json()["profile"]["model_route"] == "general"
 
 
