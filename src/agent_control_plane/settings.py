@@ -19,6 +19,7 @@ class Settings:
     profile_home: str = "/var/lib/hermes/admin-readonly"
     run_timeout: int = 180
     personal_memory_enabled: bool = False
+    personal_harness: str = "hermes"
 
     @classmethod
     def from_env(cls):
@@ -33,12 +34,15 @@ class Settings:
             profile_home=os.environ.get("HERMES_HOME", cls.profile_home),
             run_timeout=int(os.environ.get("ACP_RUN_TIMEOUT_SECONDS", "180")),
             personal_memory_enabled=os.environ.get("ACP_PERSONAL_MEMORY_ENABLED", "0") == "1",
+            personal_harness=os.environ.get("ACP_PERSONAL_HARNESS", "hermes"),
         )
 
     def validate(self, *, worker=False):
         if not self.database_url or not self.tenant:
             raise ValueError("Database and tenant configuration are required")
         if worker:
+            if self.personal_harness not in {"hermes", "pydantic-ai"}:
+                raise ValueError("Unsupported personal harness")
             for value in (self.prometheus_url, self.model_base_url):
                 url = urlsplit(value)
                 if (
