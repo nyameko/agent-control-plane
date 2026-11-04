@@ -46,7 +46,7 @@ def _check_v4(conn):
     version = conn.execute(
         "SELECT version FROM acp1.schema_version ORDER BY version DESC LIMIT 1"
     ).fetchone()
-    if version is None or version["version"] not in {4, 5, 6}:
+    if version is None or version["version"] not in {4, 5, 6, 7}:
         raise MemoryUnavailable
 
 
