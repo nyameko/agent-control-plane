@@ -208,7 +208,9 @@ def create_app(settings=None):
         except skills.SkillUnavailable:
             raise HTTPException(503, "Reviewed skill binding schema v8 unavailable") from None
         except skills.SkillNotReviewed:
-            raise HTTPException(403, "Skill or version is not in the trusted review catalog") from None
+            raise HTTPException(
+                403, "Skill or version is not in the trusted review catalog"
+            ) from None
         except skills.SkillMissing:
             raise HTTPException(404, "Skill binding not found") from None
         except skills.SkillConflict:
