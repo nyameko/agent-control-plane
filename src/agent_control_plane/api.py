@@ -236,8 +236,11 @@ def create_app(settings=None):
 
     @app.post("/v1/projects", status_code=201)
     def create_project(request: ProjectCreate, principal: Personal):
-        with db.connection(configured.database_url) as conn:
-            return db.create_project(conn, principal, request.title)
+        try:
+            with db.connection(configured.database_url) as conn:
+                return db.create_project(conn, principal, request.title)
+        except db.WorkspaceTitleConflict:
+            raise HTTPException(409, "An active project already has this title") from None
 
     @app.get("/v1/projects")
     def projects(principal: Personal):
@@ -273,6 +276,8 @@ def create_app(settings=None):
                     if_match=_workspace_if_match(if_match),
                     title=request.title, archived=request.archived,
                 )
+        except db.WorkspaceTitleConflict:
+            raise HTTPException(409, "An active project already has this title") from None
         except db.WorkspaceStale:
             raise HTTPException(412, "Workspace has changed; refresh before updating") from None
         if result is None:
@@ -303,6 +308,8 @@ def create_app(settings=None):
                     project_id=request.project_id,
                     archived=request.archived,
                 )
+        except db.WorkspaceTitleConflict:
+            raise HTTPException(409, "An active conversation already has this title") from None
         except db.WorkspaceStale:
             raise HTTPException(412, "Conversation has changed; refresh before updating") from None
         if result is None:
@@ -312,10 +319,13 @@ def create_app(settings=None):
 
     @app.post("/v1/conversations", status_code=201)
     def create_conversation(request: ConversationCreate, principal: Personal):
-        with db.connection(configured.database_url) as conn:
-            result = db.create_conversation(
-                conn, principal, request.title, project_id=request.project_id
-            )
+        try:
+            with db.connection(configured.database_url) as conn:
+                result = db.create_conversation(
+                    conn, principal, request.title, project_id=request.project_id
+                )
+        except db.WorkspaceTitleConflict:
+            raise HTTPException(409, "An active conversation already has this title") from None
         if result is None:
             raise HTTPException(404, "Project not found")
         return result
