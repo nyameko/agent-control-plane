@@ -9,7 +9,7 @@ import pytest
 from agent_control_plane import db
 
 
-@pytest.mark.parametrize("version", [3, 4, 5, 6])
+@pytest.mark.parametrize("version", [3, 4, 5, 6, 7])
 def test_ready_accepts_supported_versions(version):
     conn = MagicMock()
     conn.execute.return_value.fetchone.side_effect = [
