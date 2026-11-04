@@ -3,7 +3,6 @@
 No paid provider, external network, live cluster, user impersonation, or SQL writes.
 """
 import json
-import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from uuid import uuid4
