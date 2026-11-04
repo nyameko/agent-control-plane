@@ -14,7 +14,7 @@ CREATE TABLE acp1.skill_binding (
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     revoked_at timestamptz,
-    UNIQUE (tenant, owner_subject, skill_id),
+    UNIQUE (tenant, owner_subject, skill_id, version),
     CHECK ((status = 'revoked') = (revoked_at IS NOT NULL))
 );
 ALTER TABLE acp1.skill_binding ENABLE ROW LEVEL SECURITY;
@@ -46,3 +46,35 @@ CREATE POLICY private_skill_revision ON acp1.skill_binding_revision
  WITH CHECK (tenant=current_setting('acp.tenant_id',true)
    AND owner_subject=current_setting('acp.subject_id',true));
 GRANT SELECT,INSERT ON acp1.skill_binding_revision TO acp_app;
+
+-- Bindings cannot be repointed from one reviewed Git source to another.
+-- Enabling another version means a different versioned binding and new review.
+CREATE FUNCTION acp1.skill_binding_guard() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF ROW(NEW.id,NEW.tenant,NEW.owner_subject,NEW.skill_id,NEW.version,
+           NEW.source_commit,NEW.manifest_sha256,NEW.created_at)
+       IS DISTINCT FROM
+       ROW(OLD.id,OLD.tenant,OLD.owner_subject,OLD.skill_id,OLD.version,
+           OLD.source_commit,OLD.manifest_sha256,OLD.created_at)
+    THEN
+        RAISE EXCEPTION 'Immutable reviewed skill source' USING ERRCODE='23514';
+    END IF;
+    IF NEW.revision <> OLD.revision+1
+       OR NEW.status = OLD.status
+       OR (NEW.status='revoked' AND NEW.revoked_at IS NULL)
+       OR (NEW.status='enabled' AND NEW.revoked_at IS NOT NULL)
+       OR NOT EXISTS (
+           SELECT 1 FROM acp1.skill_binding_revision r
+           WHERE r.binding_id=NEW.id AND r.tenant=NEW.tenant
+             AND r.owner_subject=NEW.owner_subject
+             AND r.revision=NEW.revision AND r.action=NEW.status
+       )
+    THEN
+        RAISE EXCEPTION 'Invalid reviewed skill binding transition' USING ERRCODE='23514';
+    END IF;
+    NEW.updated_at := now();
+    RETURN NEW;
+END $$;
+CREATE TRIGGER skill_binding_update_guard BEFORE UPDATE ON acp1.skill_binding
+    FOR EACH ROW EXECUTE FUNCTION acp1.skill_binding_guard();
