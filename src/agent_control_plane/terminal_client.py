@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
@@ -34,13 +35,20 @@ def parser() -> argparse.ArgumentParser:
         prog="acp", description="Terminal access to canonical research conversations"
     )
     cli.add_argument("--url", required=True, help="Trusted HTTPS ACP API endpoint")
-    cli.add_argument(
-        "--token-stdin", action="store_true", required=True,
-        help="Read one short-lived broker-issued assertion from stdin",
+    identity = cli.add_mutually_exclusive_group(required=True)
+    identity.add_argument(
+        "--token-stdin", action="store_true",
+        help="Legacy/operator-only: read a pre-issued short-lived ACP assertion from stdin",
+    )
+    identity.add_argument(
+        "--browser-pair", action="store_true",
+        help="Use explicit short-lived Quantum Platform browser approval (no ACP token on SSH)",
     )
     sub = cli.add_subparsers(dest="command", required=True)
     sub.add_parser("projects", help="List private projects")
     sub.add_parser("chats", help="List private conversations")
+    new = sub.add_parser("new", help="Create private conversation")
+    new.add_argument("title", help="New conversation title")
     show = sub.add_parser("show", help="Display one conversation")
     show.add_argument("conversation_id", type=UUID)
     send = sub.add_parser("send", help="Submit a turn to an existing conversation")
@@ -74,17 +82,62 @@ def _format(result, *, json_mode=False):
     return json.dumps(result, indent=2, default=str)
 
 
+def _browser_pair(client, endpoint):
+    """Obtain RAM-only device proof; browser approval, never SSH username, is identity."""
+    start = client.post(
+        endpoint + "/api/v1/agent/terminal-pairings/start/",
+        json={"device_label": "Research SSH terminal"},
+    )
+    if start.status_code != 201:
+        raise ValueError("Portal terminal pairing is unavailable")
+    data = start.json()
+    code = data.get("verification_code")
+    identity = data.get("pairing_id")
+    proof = data.get("pairing_proof")
+    if not (
+        isinstance(code, str) and len(code) == 12 and code.isascii()
+        and isinstance(identity, str) and isinstance(proof, str)
+        and 40 <= len(proof) <= 100
+    ):
+        raise ValueError("Invalid terminal pairing response")
+    UUID(identity)
+    print(
+        "In your authenticated browser, visit " + endpoint + "/agent/pair/\n"
+        "Approve code: " + code + "\n"
+        "This code does not grant access until YOU approve it.",
+        file=sys.stderr, flush=True,
+    )
+    interval = data.get("poll_interval", 3)
+    if type(interval) is not int or not 1 <= interval <= 10:
+        raise ValueError("Invalid terminal polling policy")
+    # Never persist this pairing proof to ~/.config, shell history or a file.
+    deadline = time.monotonic() + min(int(data.get("expires_in", 300)), 300)
+    while time.monotonic() < deadline:
+        reply = client.post(
+            endpoint + "/api/v1/agent/terminal-pairings/status/",
+            json={"pairing_id": identity, "pairing_proof": proof},
+        )
+        if reply.status_code == 410:
+            raise ValueError("Browser pairing expired or was revoked")
+        if reply.status_code != 200:
+            raise ValueError("Browser pairing status unavailable")
+        state = reply.json().get("state")
+        if state == "approved":
+            return {"X-ACP-Pairing-ID": identity, "Authorization": "Pairing " + proof}
+        if state != "pending":
+            raise ValueError("Unexpected terminal pairing status")
+        time.sleep(interval)
+    raise ValueError("Browser pairing timed out without approval")
+
+
 def main(argv=None, *, client_factory=httpx.Client) -> int:
     args = parser().parse_args(argv)
     try:
         endpoint = validated_url(args.url)
-        # Token comes from the trusted local broker's pipe, never --token on argv.
-        token = sys.stdin.readline().strip()
-        if not token or len(token) > 8192 or "\n" in token:
-            raise ValueError("No valid short-lived assertion provided by stdin")
         url = {
             "projects": "/v1/projects",
             "chats": "/v1/conversations",
+            "new": "/v1/conversations",
             "show": f"/v1/conversations/{args.conversation_id}" if args.command == "show" else "",
             "send": (
                 f"/v1/conversations/{args.conversation_id}/turns"
@@ -92,24 +145,45 @@ def main(argv=None, *, client_factory=httpx.Client) -> int:
             ),
             "run": f"/v1/runs/{args.run_id}" if args.command == "run" else "",
         }[args.command]
-        # Without a trusted identity exchange, no production login-node activation.
-        headers = {"Authorization": "Bearer " + token}
+
+        headers = {}
+        if args.token_stdin:
+            # Compatibility path only. Production M4g should use browser-pair.
+            token = sys.stdin.readline().strip()
+            if not token or len(token) > 8192 or "\n" in token:
+                raise ValueError("No valid short-lived assertion provided by stdin")
+            headers["Authorization"] = "Bearer " + token
+
         payload = None
+        if args.command == "new":
+            title = args.title.strip()
+            if not 1 <= len(title) <= 200:
+                raise ValueError("Conversation title must be 1–200 characters")
+            payload = {"title": title}
         if args.command == "send":
-            if args.text:
-                message = args.text
-            else:
-                # An already consumed token line leaves the rest of the pipe as the turn.
-                message = sys.stdin.read().strip()
+            message = args.text if args.text else sys.stdin.read().strip()
             if not message or len(message) > 4000:
                 raise ValueError("Turn text must be 1–4000 characters")
-            payload = {
-                "content": {"text": message},
-                "source_channel": "ssh",
-                "client_message_id": str(uuid4()),
-            }
+            if args.browser_pair:
+                payload = {"text": message}
+            else:
+                payload = {
+                    "content": {"text": message},
+                    "source_channel": "ssh",
+                    "client_message_id": str(uuid4()),
+                }
             headers["Idempotency-Key"] = str(uuid4())
+
         with client_factory(timeout=15, follow_redirects=False) as client:
+            if args.browser_pair:
+                headers.update(_browser_pair(client, endpoint))
+                url = "/api/v1/agent/terminal-gateway" + url.removeprefix("/v1")
+                if url.endswith("/turns"):
+                    url += "/"
+                elif url.endswith("/projects") or url.endswith("/conversations"):
+                    url += "/"
+                elif "/conversations/" in url or "/runs/" in url:
+                    url += "/"
             reply = client.post(endpoint + url, headers=headers, json=payload) if payload else (
                 client.get(endpoint + url, headers=headers)
             )
@@ -124,7 +198,7 @@ def main(argv=None, *, client_factory=httpx.Client) -> int:
             return 2
         print(_format(reply.json(), json_mode=args.json))
         return 0
-    except (ValueError, httpx.RequestError, json.JSONDecodeError) as exc:
+    except (ValueError, httpx.RequestError, json.JSONDecodeError, KeyError) as exc:
         print(f"ACP client: {exc}", file=sys.stderr)
         return 2
 
