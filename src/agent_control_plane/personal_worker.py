@@ -46,7 +46,7 @@ def _personal_subprocess_environment(settings, profile):
         "HERMES_ENABLE_PROJECT_PLUGINS": "0",
         "HERMES_DISABLE_LAZY_INSTALLS": "1",
         "ACP_MODEL": settings.model,
-        "ACP_PERSONAL_HARNESS": settings.personal_harness,
+        "ACP_PERSONAL_HARNESS": getattr(settings, "personal_harness", "hermes"),
         "ACP_MODEL_BASE_URL": settings.model_base_url,
         "ACP_MODEL_API_KEY": os.environ["ACP_MODEL_API_KEY"],
         "ACP_PERSONAL_MODEL_EXTRA_BODY_JSON": os.environ.get(
@@ -107,7 +107,7 @@ def run_hermes(conn, settings, run, context):
 
 
 def run_once(conn, settings, *, responder=run_hermes):
-    revision = (HERMES_REVISION if settings.personal_harness == "hermes"
+    revision = (HERMES_REVISION if getattr(settings, "personal_harness", "hermes") == "hermes"
                 else "pydantic-ai-slim:" + version("pydantic-ai-slim"))
     run = db.claim_personal(conn, settings, revision)
     if not run:
