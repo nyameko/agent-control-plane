@@ -47,6 +47,8 @@ def parser() -> argparse.ArgumentParser:
     sub = cli.add_subparsers(dest="command", required=True)
     sub.add_parser("projects", help="List private projects")
     sub.add_parser("chats", help="List private conversations")
+    new = sub.add_parser("new", help="Create private conversation")
+    new.add_argument("title", help="New conversation title")
     show = sub.add_parser("show", help="Display one conversation")
     show.add_argument("conversation_id", type=UUID)
     send = sub.add_parser("send", help="Submit a turn to an existing conversation")
@@ -135,6 +137,7 @@ def main(argv=None, *, client_factory=httpx.Client) -> int:
         url = {
             "projects": "/v1/projects",
             "chats": "/v1/conversations",
+            "new": "/v1/conversations",
             "show": f"/v1/conversations/{args.conversation_id}" if args.command == "show" else "",
             "send": (
                 f"/v1/conversations/{args.conversation_id}/turns"
@@ -152,6 +155,11 @@ def main(argv=None, *, client_factory=httpx.Client) -> int:
             headers["Authorization"] = "Bearer " + token
 
         payload = None
+        if args.command == "new":
+            title = args.title.strip()
+            if not 1 <= len(title) <= 200:
+                raise ValueError("Conversation title must be 1–200 characters")
+            payload = {"title": title}
         if args.command == "send":
             message = args.text if args.text else sys.stdin.read().strip()
             if not message or len(message) > 4000:
@@ -169,7 +177,7 @@ def main(argv=None, *, client_factory=httpx.Client) -> int:
         with client_factory(timeout=15, follow_redirects=False) as client:
             if args.browser_pair:
                 headers.update(_browser_pair(client, endpoint))
-                url = "/api/v1/agent/terminal-gateway" + url
+                url = "/api/v1/agent/terminal-gateway" + url.removeprefix("/v1")
                 if url.endswith("/turns"):
                     url += "/"
                 elif url.endswith("/projects") or url.endswith("/conversations"):
