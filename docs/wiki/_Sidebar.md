@@ -10,3 +10,4 @@
 - [Security and tenancy](Security-and-tenancy.md)
 - [Troubleshooting](Troubleshooting.md)
 - [Contributing](Contributing.md)
+- [Guide help and support](Guide-assistance.md)
