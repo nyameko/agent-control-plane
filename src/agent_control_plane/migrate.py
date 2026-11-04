@@ -14,6 +14,7 @@ MIGRATIONS = (
     (5, "migrations/0005_m4c_programme_rooms.sql"),
     (6, "migrations/0006_m4e_personal_profile.sql"),
     (7, "migrations/0007_m4f_empty_workspace_delete.sql"),
+    (8, "migrations/0008_m4d_reviewed_skill_bindings.sql"),
 )
 
 
