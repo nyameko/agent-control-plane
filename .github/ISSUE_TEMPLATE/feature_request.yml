@@ -1,0 +1,34 @@
+name: Proposal or feature request
+description: Discuss a scoped extension with evidence and alternatives
+title: "[Proposal] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not present planned capabilities as implemented. Do not post private keys, passwords, tokens, production Secrets, private research data or sensitive network details. Security issues require private reporting.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Who needs the capability and for what task?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Existing libraries, alternatives and repository ownership
+      description: Explain why an existing SDK/framework or documented procedure is insufficient.
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Acceptance tests and reproducible evidence
+      description: Include mathematical/scientific validity, authorization and failure-mode testing as applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Compatibility, security, cost and migration risks
+    validations:
+      required: false
