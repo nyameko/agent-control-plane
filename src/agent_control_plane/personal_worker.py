@@ -1,7 +1,6 @@
 """M4a personal worker: hydrate canonical ACP context, run Hermes, commit response."""
 
 import json
-from importlib.metadata import version
 import logging
 import os
 import signal
@@ -9,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from importlib.metadata import version
 from pathlib import Path
 
 from agent_control_plane import db
