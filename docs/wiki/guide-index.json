@@ -9,119 +9,119 @@
       "slug": "ACP-release-and-conformance",
       "title": "ACP release and conformance",
       "source_path": "docs/wiki/ACP-release-and-conformance.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/ACP-release-and-conformance.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/ACP-release-and-conformance.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/ACP-release-and-conformance"
     },
     {
       "slug": "API-and-data-contracts",
       "title": "API and data contracts",
       "source_path": "docs/wiki/API-and-data-contracts.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/API-and-data-contracts.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/API-and-data-contracts.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/API-and-data-contracts"
     },
     {
       "slug": "Agent-security-checklists",
       "title": "Agent security checklists",
       "source_path": "docs/wiki/Agent-security-checklists.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Agent-security-checklists.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/Agent-security-checklists.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Agent-security-checklists"
     },
     {
       "slug": "Architecture",
       "title": "Architecture",
       "source_path": "docs/wiki/Architecture.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Architecture.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/Architecture.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Architecture"
     },
     {
       "slug": "Clients-and-integrations",
       "title": "Clients and integrations",
       "source_path": "docs/wiki/Clients-and-integrations.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Clients-and-integrations.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/Clients-and-integrations.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Clients-and-integrations"
     },
     {
       "slug": "Contributing",
       "title": "Contributing",
       "source_path": "docs/wiki/Contributing.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Contributing.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/Contributing.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Contributing"
     },
     {
       "slug": "Database-RLS-and-migrations",
       "title": "Database RLS and migrations",
       "source_path": "docs/wiki/Database-RLS-and-migrations.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Database-RLS-and-migrations.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/Database-RLS-and-migrations.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Database-RLS-and-migrations"
     },
     {
       "slug": "Developer-guide",
       "title": "Developer guide",
       "source_path": "docs/wiki/Developer-guide.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Developer-guide.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/Developer-guide.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Developer-guide"
     },
     {
       "slug": "Guide-assistance",
       "title": "Guide assistance",
       "source_path": "docs/wiki/Guide-assistance.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Guide-assistance.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/Guide-assistance.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Guide-assistance"
     },
     {
       "slug": "Harness-lifecycle-and-continuity",
       "title": "Harness lifecycle and continuity",
       "source_path": "docs/wiki/Harness-lifecycle-and-continuity.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Harness-lifecycle-and-continuity.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/Harness-lifecycle-and-continuity.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Harness-lifecycle-and-continuity"
     },
     {
       "slug": "Home",
       "title": "Home",
       "source_path": "docs/wiki/Home.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Home.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/Home.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Home"
     },
     {
       "slug": "Memory-lifecycle-and-provenance",
       "title": "Memory lifecycle and provenance",
       "source_path": "docs/wiki/Memory-lifecycle-and-provenance.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Memory-lifecycle-and-provenance.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/Memory-lifecycle-and-provenance.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Memory-lifecycle-and-provenance"
     },
     {
       "slug": "Models-and-runtimes",
       "title": "Models and runtimes",
       "source_path": "docs/wiki/Models-and-runtimes.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Models-and-runtimes.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/Models-and-runtimes.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Models-and-runtimes"
     },
     {
       "slug": "Operator-runbook",
       "title": "Operator runbook",
       "source_path": "docs/wiki/Operator-runbook.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Operator-runbook.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/Operator-runbook.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Operator-runbook"
     },
     {
       "slug": "Researcher-guide",
       "title": "Researcher guide",
       "source_path": "docs/wiki/Researcher-guide.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Researcher-guide.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/Researcher-guide.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Researcher-guide"
     },
     {
       "slug": "Security-and-tenancy",
       "title": "Security and tenancy",
       "source_path": "docs/wiki/Security-and-tenancy.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Security-and-tenancy.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/Security-and-tenancy.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Security-and-tenancy"
     },
     {
       "slug": "Troubleshooting",
       "title": "Troubleshooting",
       "source_path": "docs/wiki/Troubleshooting.md",
-      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Troubleshooting.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/dev/docs/wiki/Troubleshooting.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Troubleshooting"
     }
   ]
