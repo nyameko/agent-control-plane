@@ -290,6 +290,63 @@ def update_conversation(
         ).fetchone()
 
 
+
+class WorkspaceNotEmpty(Exception):
+    """Permanent deletion is restricted to genuinely empty owner workspaces."""
+
+
+def delete_empty_conversation(conn, principal, conversation_id, *, if_match):
+    """Delete only an owner-scoped chat with no message, task or run provenance.
+
+    RLS and the row lock protect from cross-user access and concurrent writers.
+    Historical memories reference message rows, which are never deleted here.
+    """
+    with scoped(conn, principal.tenant, principal.subject):
+        current = conn.execute(
+            "SELECT id,updated_at FROM acp1.conversation WHERE id=%s FOR UPDATE",
+            (conversation_id,),
+        ).fetchone()
+        if current is None:
+            return None
+        if if_match != _workspace_etag(current):
+            raise WorkspaceStale
+        if conn.execute(
+            "SELECT 1 FROM acp1.message WHERE conversation_id=%s LIMIT 1",
+            (conversation_id,),
+        ).fetchone() or conn.execute(
+            "SELECT 1 FROM acp1.task WHERE conversation_id=%s LIMIT 1",
+            (conversation_id,),
+        ).fetchone():
+            raise WorkspaceNotEmpty
+        return conn.execute(
+            "DELETE FROM acp1.conversation WHERE id=%s RETURNING id",
+            (conversation_id,),
+        ).fetchone()
+
+
+def delete_empty_project(conn, principal, project_id, *, if_match):
+    """Delete only an owner-scoped project without any attached conversations."""
+    with scoped(conn, principal.tenant, principal.subject):
+        current = conn.execute(
+            "SELECT id,updated_at FROM acp1.project WHERE id=%s FOR UPDATE",
+            (project_id,),
+        ).fetchone()
+        if current is None:
+            return None
+        if if_match != _workspace_etag(current):
+            raise WorkspaceStale
+        # Archived conversations must block deletion too; they remain canonical.
+        if conn.execute(
+            "SELECT 1 FROM acp1.conversation WHERE project_id=%s LIMIT 1",
+            (project_id,),
+        ).fetchone():
+            raise WorkspaceNotEmpty
+        return conn.execute(
+            "DELETE FROM acp1.project WHERE id=%s RETURNING id",
+            (project_id,),
+        ).fetchone()
+
+
 def create_conversation(conn, principal, title, project_id=None):
     conversation_id = uuid4()
     with scoped(conn, principal.tenant, principal.subject):
