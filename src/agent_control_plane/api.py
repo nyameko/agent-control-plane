@@ -256,6 +256,26 @@ def create_app(settings=None):
         response.headers["ETag"] = db._workspace_etag(result)
         return result
 
+    @app.delete("/v1/projects/{project_id}", status_code=204)
+    def delete_empty_project(
+        project_id: UUID,
+        principal: Personal,
+        if_match: Annotated[str, Header()],
+    ):
+        try:
+            with db.connection(configured.database_url) as conn:
+                result = db.delete_empty_project(
+                    conn, principal, project_id,
+                    if_match=_workspace_if_match(if_match),
+                )
+        except db.WorkspaceStale:
+            raise HTTPException(412, "Workspace changed; refresh before deleting") from None
+        except (db.WorkspaceNotEmpty, psycopg.errors.ForeignKeyViolation):
+            raise HTTPException(409, "Project contains conversations; remove them first") from None
+        if result is None:
+            raise HTTPException(404, "Project not found")
+        return Response(status_code=204)
+
     @app.patch("/v1/projects/{project_id}")
     def patch_project(
         project_id: UUID,
@@ -316,6 +336,28 @@ def create_app(settings=None):
             raise HTTPException(404, "Conversation or target project not found")
         response.headers["ETag"] = db._workspace_etag(result)
         return result
+
+    @app.delete("/v1/conversations/{conversation_id}", status_code=204)
+    def delete_empty_conversation(
+        conversation_id: UUID,
+        principal: Personal,
+        if_match: Annotated[str, Header()],
+    ):
+        try:
+            with db.connection(configured.database_url) as conn:
+                result = db.delete_empty_conversation(
+                    conn, principal, conversation_id,
+                    if_match=_workspace_if_match(if_match),
+                )
+        except db.WorkspaceStale:
+            raise HTTPException(412, "Conversation changed; refresh before deleting") from None
+        except (db.WorkspaceNotEmpty, psycopg.errors.ForeignKeyViolation):
+            raise HTTPException(
+                409, "Conversation has messages or runs; archive it instead"
+            ) from None
+        if result is None:
+            raise HTTPException(404, "Conversation not found")
+        return Response(status_code=204)
 
     @app.post("/v1/conversations", status_code=201)
     def create_conversation(request: ConversationCreate, principal: Personal):
