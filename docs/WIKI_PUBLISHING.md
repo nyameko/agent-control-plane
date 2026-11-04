@@ -5,3 +5,11 @@ Source articles in `docs/wiki/*.md` must be reviewed in the code repository befo
 Editorial rules follow ArchWiki-inspired principles: explain scope/prerequisites, prefer reproducible copyable commands, call out side effects, link specific source contracts/tests, write clear troubleshooting symptoms, avoid unsupported praise or speculation, and mark source-only, deployed, planned, deprecated and live-tested claims separately.
 
 **Agent retrieval:** index source commit, audience, page slug, capability status and supporting file paths. Do not treat documentation as execution approval, leak tokens to prompts, infer live migration state from README text, or report an acceptance gate as passed without observed evidence. Retain links to the last known good run and regression test.
+
+## Automatic publishing from `dev`
+
+After review and merge of `.github/workflows/publish-github-wiki.yml` to `dev`, changing `docs/wiki/` on `dev` validates the versioned Guide index and publishes managed Markdown pages to this repository's separate native GitHub Wiki. The job uses the built-in short-lived GitHub Actions `GITHUB_TOKEN` with `contents: write` and `gh auth setup-git`, a dry-run, and GitHub's native Wiki Git remote. No vendor LLM API token or personal GitHub PAT is normally required.
+
+**Initialize once:** in GitHub repository Settings → General → Features, enable Wikis; open Wiki → Create the first page → save a `Home` page. Otherwise the `.wiki.git` remote does not yet exist and the job fails. Run only after reviewed changes reach `dev`, and verify the workflow result plus actual Wiki Home/sidebar. This publishes **development documentation**, not independently verified production status.
+
+You may also publish manually: authenticate with `gh auth login` / `gh auth setup-git`, check out `dev`, then run `bash scripts/publish-github-wiki.sh --dry-run` followed by `bash scripts/publish-github-wiki.sh`. `workflow_dispatch` is declared but GitHub's Actions UI may not expose manual runs until the workflow is also present on the default branch. Changes to unrelated native Wiki pages are preserved by this script; roll back via reviewed `dev` documentation or the native Wiki Git history. Repositories can restrict Actions token permissions, in which case review the job failure before changing credential strategy.
