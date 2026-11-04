@@ -75,7 +75,9 @@ def test_empty_workspace_delete_is_owner_only_and_stale_safe(database, client, t
     outsider = token(scope="agent:personal", sub=f"urn:quantum-platform:user:{uuid4()}")
     diag = token(scope="admin:diagnostics")
     conv = client.post("/v1/conversations", headers=owner, json={"title": "Disposable"}).json()
-    project = client.post("/v1/projects", headers=owner, json={"title": "Disposable project"}).json()
+    project = client.post(
+        "/v1/projects", headers=owner, json={"title": "Disposable project"},
+    ).json()
     for url, row in (
         ("/v1/conversations/" + conv["id"], conv),
         ("/v1/projects/" + project["id"], project),
