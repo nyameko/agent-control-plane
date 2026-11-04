@@ -14,18 +14,26 @@ def respond(context, session_id):
     # deferred so the default Hermes profile never needs PydanticAI at runtime.
     from pydantic_ai import Agent
     from pydantic_ai.models.openai import OpenAIChatModel
-    from pydantic_ai.providers.openai_compatible import OpenAICompatibleProvider
-
-    if not isinstance(session_id, str) or not session_id.startswith("acp-"):
-        raise ValueError("Canonical ACP run/session identifier required")
-    model = OpenAIChatModel(
-        os.environ["ACP_MODEL"],
-        provider=OpenAICompatibleProvider(
+    try:
+        from pydantic_ai.providers.openai_compatible import OpenAICompatibleProvider
+    except ImportError:
+        # Older published pydantic-ai-slim 1.x builds use OpenAIProvider
+        # for explicit OpenAI-compatible Chat Completions endpoints.
+        from pydantic_ai.providers.openai import OpenAIProvider
+        provider = OpenAIProvider(
+            base_url=os.environ["ACP_MODEL_BASE_URL"],
+            api_key=os.environ["ACP_MODEL_API_KEY"],
+        )
+    else:
+        provider = OpenAICompatibleProvider(
             "acp-inference-gateway",
             base_url=os.environ["ACP_MODEL_BASE_URL"],
             api_key=os.environ["ACP_MODEL_API_KEY"],
-        ),
-    )
+        )
+
+    if not isinstance(session_id, str) or not session_id.startswith("acp-"):
+        raise ValueError("Canonical ACP run/session identifier required")
+    model = OpenAIChatModel(os.environ["ACP_MODEL"], provider=provider)
     # No tools or delegation; this is a bounded inference-only harness.
     agent = Agent(model, instructions=PERSONAL_SOUL, tools=[], retries=0)
     result = agent.run_sync(canonical_prompt(context))
