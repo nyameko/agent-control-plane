@@ -1,0 +1,41 @@
+name: Bug report
+description: Report a reproducible ACP projects/memory, runtime/harness, model routing, signed auth or persistence defect
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Public issues are visible to everyone. Do not post private keys, passwords, tokens, production Secrets, private research data or sensitive network details. Security issues require private reporting.
+  - type: input
+    id: version
+    attributes:
+      label: Version, source Git SHA or image digest
+    validations:
+      required: true
+  - type: input
+    id: component
+    attributes:
+      label: Affected subsystem or class/function
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal steps, environment and input
+      description: Reproduce using non-sensitive data; include the active SDK/Python versions, configuration and role when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected versus observed behavior
+      description: Add a mathematically justified result or tolerance for scientific behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized traceback, results, timestamps and known limitations
+      description: Redact secrets and protected datasets. Provide correlated task/job/run IDs if useful.
+    validations:
+      required: false

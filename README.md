@@ -1,5 +1,8 @@
 # Agent Control Plane
 
+> **Manuals:** [ACP Wiki home](docs/wiki/Home.md) · [Researcher guide](docs/wiki/Researcher-guide.md) · [Architecture](docs/wiki/Architecture.md) · [Developer and API](docs/wiki/API-and-data-contracts.md) · [Operator runbook](docs/wiki/Operator-runbook.md) · [Troubleshooting](docs/wiki/Troubleshooting.md). Reviewed pages are versioned in `docs/wiki/`; [publication instructions](docs/WIKI_PUBLISHING.md) cover the [separate GitHub Wiki](https://github.com/nyameko/agent-control-plane/wiki).
+
+
 **One durable research and engineering context, many clients, agents, runtimes, models and compute targets.**
 
 Agent Control Plane (ACP) is the policy-aware coordination and state layer for a self-hosted research and engineering platform spanning Quantum Platform, Jupyter, SSH, editors, agent runtimes, open-weight models, Kubernetes, Slurm, GPUs and eventually QPUs.
