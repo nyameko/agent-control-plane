@@ -11,3 +11,9 @@
 - [Troubleshooting](Troubleshooting.md)
 - [Contributing](Contributing.md)
 - [Guide help and support](Guide-assistance.md)
+**Engineering reference**
+- [Database RLS and migrations](Database-RLS-and-migrations.md)
+- [Memory lifecycle and provenance](Memory-lifecycle-and-provenance.md)
+- [Harness lifecycle and continuity](Harness-lifecycle-and-continuity.md)
+- [ACP release and conformance](ACP-release-and-conformance.md)
+- [Agent security checklists](Agent-security-checklists.md)

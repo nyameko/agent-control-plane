@@ -24,3 +24,12 @@ Start with [README](https://github.com/nyameko/agent-control-plane/blob/main/REA
 ## Guide discovery and support
 
 [Guide integration, issue routing and safe agent retrieval](Guide-assistance.md) · [machine-readable page index](guide-index.json). Neither documentation nor its index grants resource permissions.
+
+
+## Detailed engineering and reliability references
+
+- [Database RLS and migrations](Database-RLS-and-migrations.md)
+- [Memory lifecycle and provenance](Memory-lifecycle-and-provenance.md)
+- [Harness lifecycle and continuity](Harness-lifecycle-and-continuity.md)
+- [ACP release and conformance](ACP-release-and-conformance.md)
+- [Agent security checklists](Agent-security-checklists.md)

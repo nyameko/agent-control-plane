@@ -6,11 +6,25 @@
   "description": "Discovery index only; verify source commit, deployment and permissions before use.",
   "pages": [
     {
+      "slug": "ACP-release-and-conformance",
+      "title": "ACP release and conformance",
+      "source_path": "docs/wiki/ACP-release-and-conformance.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/ACP-release-and-conformance.md",
+      "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/ACP-release-and-conformance"
+    },
+    {
       "slug": "API-and-data-contracts",
       "title": "API and data contracts",
       "source_path": "docs/wiki/API-and-data-contracts.md",
       "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/API-and-data-contracts.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/API-and-data-contracts"
+    },
+    {
+      "slug": "Agent-security-checklists",
+      "title": "Agent security checklists",
+      "source_path": "docs/wiki/Agent-security-checklists.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Agent-security-checklists.md",
+      "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Agent-security-checklists"
     },
     {
       "slug": "Architecture",
@@ -34,6 +48,13 @@
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Contributing"
     },
     {
+      "slug": "Database-RLS-and-migrations",
+      "title": "Database RLS and migrations",
+      "source_path": "docs/wiki/Database-RLS-and-migrations.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Database-RLS-and-migrations.md",
+      "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Database-RLS-and-migrations"
+    },
+    {
       "slug": "Developer-guide",
       "title": "Developer guide",
       "source_path": "docs/wiki/Developer-guide.md",
@@ -48,11 +69,25 @@
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Guide-assistance"
     },
     {
+      "slug": "Harness-lifecycle-and-continuity",
+      "title": "Harness lifecycle and continuity",
+      "source_path": "docs/wiki/Harness-lifecycle-and-continuity.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Harness-lifecycle-and-continuity.md",
+      "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Harness-lifecycle-and-continuity"
+    },
+    {
       "slug": "Home",
       "title": "Home",
       "source_path": "docs/wiki/Home.md",
       "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Home.md",
       "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Home"
+    },
+    {
+      "slug": "Memory-lifecycle-and-provenance",
+      "title": "Memory lifecycle and provenance",
+      "source_path": "docs/wiki/Memory-lifecycle-and-provenance.md",
+      "source_url": "https://github.com/nyameko/agent-control-plane/blob/main/docs/wiki/Memory-lifecycle-and-provenance.md",
+      "wiki_url": "https://github.com/nyameko/agent-control-plane/wiki/Memory-lifecycle-and-provenance"
     },
     {
       "slug": "Models-and-runtimes",
