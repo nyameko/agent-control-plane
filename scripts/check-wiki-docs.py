@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Validate wiki Markdown links and machine-readable Guide index without network."""
 from __future__ import annotations
+
 import json
 import re
 import sys
@@ -18,7 +19,9 @@ index = {
     "repository": REPO,
     "source_root": "docs/wiki",
     "public": True,
-    "description": "Discovery index only; verify source commit, deployment and permissions before use.",
+    "description": (
+        "Discovery index only; verify source commit, deployment and permissions before use."
+    ),
     "pages": [
         {
             "slug": p.stem,
