@@ -78,7 +78,15 @@ def respond(context, session_id):
 
 def main():
     request = json.loads(Path(sys.argv[1]).read_text())
-    answer = respond(request["context"], request["session_id"])
+    harness = os.environ.get("ACP_PERSONAL_HARNESS", "hermes")
+    if harness == "hermes":
+        answer = respond(request["context"], request["session_id"])
+    elif harness == "pydantic-ai":
+        from agent_control_plane.pydanticai_runtime import respond as alternate_respond
+
+        answer = alternate_respond(request["context"], request["session_id"])
+    else:
+        raise RuntimeError("Unsupported ACP personal harness")
     Path(sys.argv[2]).write_text(json.dumps({"response": answer}))
 
 
