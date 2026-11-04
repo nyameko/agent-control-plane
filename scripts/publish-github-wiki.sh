@@ -6,7 +6,7 @@ cd "$(git rev-parse --show-toplevel)"
 test -f docs/wiki/Home.md
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 git clone --quiet "https://github.com/nyameko/agent-control-plane.wiki.git" "$tmp/wiki"
-find docs/wiki -maxdepth 1 -type f -name '*.md' -print0 | while IFS= read -r -d '' f; do cp "$f" "$tmp/wiki/$(basename "$f")"; done
+python3 scripts/prepare_github_wiki.py --source docs/wiki --destination "$tmp/wiki" --repo "nyameko/agent-control-plane"
 git -C "$tmp/wiki" add -- '*.md'
 git -C "$tmp/wiki" status --short
 git -C "$tmp/wiki" diff --cached --quiet && { echo "No changes"; exit 0; }
