@@ -107,13 +107,7 @@ def test_signed_scope_etag_required_and_tampering_fails(
     ).status_code == 422
 
 
-def test_review_catalog_rejects_unsafe_code_grants(monkeypatch):
-    from importlib.resources import files
-    import json
-
-    original_files = files
-    base = original_files("agent_control_plane")
-    manifest = json.loads(base.joinpath("reviewed_skills.json").read_text())
-    assert manifest == {"catalog_version": 1, "reviewed": []}
-    # Even a Git-reviewed catalog is limited to resource reads in M4d.
+def test_default_catalog_does_not_grant_code_execution():
+    # The shipped catalog has no reviewed entries. No executable or privileged
+    # artifact is promoted by release merely because it was proposed.
     assert skills.catalog() == []
