@@ -9,7 +9,7 @@ import psycopg
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
-from agent_control_plane import __version__, curation, db, memory
+from agent_control_plane import __version__, curation, db, memory, skills
 from agent_control_plane.auth import Principal, require_admin, require_personal, require_programme
 from agent_control_plane.models import ExecutionPlan, TaskRequest
 from agent_control_plane.routing import plan_task
@@ -193,6 +193,68 @@ def create_app(settings=None):
         if result is None:
             raise HTTPException(404, "Task not found")
         return result
+
+    def _skill_revision(value):
+        if not value.startswith('"') or not value.endswith('"'):
+            raise HTTPException(422, "Quoted skill revision required")
+        number = value[1:-1]
+        if not number.isdecimal() or not 1 <= len(number) <= 8:
+            raise HTTPException(422, "Invalid skill revision")
+        return int(number)
+
+    def _skill_call(operation):
+        try:
+            return operation()
+        except skills.SkillUnavailable:
+            raise HTTPException(503, "Reviewed skill binding schema v8 unavailable") from None
+        except skills.SkillNotReviewed:
+            raise HTTPException(403, "Skill or version is not in the trusted review catalog") from None
+        except skills.SkillMissing:
+            raise HTTPException(404, "Skill binding not found") from None
+        except skills.SkillConflict:
+            raise HTTPException(412, "Skill binding revision changed") from None
+
+    @app.get("/v1/skills/catalog")
+    def reviewed_skill_catalog(principal: Personal):
+        # Catalog contains inert Git references. The caller cannot approve
+        # arbitrary code or install/enable tools through this endpoint.
+        return {"items": skills.catalog()}
+
+    @app.get("/v1/skills/bindings")
+    def list_skill_bindings(principal: Personal):
+        with db.connection(configured.database_url) as conn:
+            return {"items": _skill_call(lambda: skills.bindings(conn, principal))}
+
+    @app.put("/v1/skills/{skill_id}/versions/{version}/binding")
+    def enable_skill_binding(
+        skill_id: str, version: str, principal: Personal, response: Response,
+        if_match: Annotated[str, Header()],
+    ):
+        with db.connection(configured.database_url) as conn:
+            record, created = _skill_call(
+                lambda: skills.enable(
+                    conn, principal, skill_id, version,
+                    expected_revision=_skill_revision(if_match),
+                )
+            )
+        response.status_code = 201 if created else 200
+        response.headers["ETag"] = '"' + str(record["revision"]) + '"'
+        return record
+
+    @app.post("/v1/skills/{skill_id}/versions/{version}/revoke")
+    def revoke_skill_binding(
+        skill_id: str, version: str, principal: Personal, response: Response,
+        if_match: Annotated[str, Header()],
+    ):
+        with db.connection(configured.database_url) as conn:
+            record, _ = _skill_call(
+                lambda: skills.revoke(
+                    conn, principal, skill_id, version,
+                    expected_revision=_skill_revision(if_match),
+                )
+            )
+        response.headers["ETag"] = '"' + str(record["revision"]) + '"'
+        return record
 
     @app.get("/v1/profile")
     def personal_profile(principal: Personal):
