@@ -19,7 +19,7 @@ def test_ready_accepts_supported_versions(version):
     db.ready(conn)
 
 
-@pytest.mark.parametrize("version", [None, 2, 7])
+@pytest.mark.parametrize("version", [None, 2, 8])
 def test_ready_rejects_unsupported_versions(version):
     conn = MagicMock()
     conn.execute.return_value.fetchone.side_effect = [
