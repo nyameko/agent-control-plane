@@ -15,6 +15,7 @@ CREATE TABLE acp1.skill_binding (
     updated_at timestamptz NOT NULL DEFAULT now(),
     revoked_at timestamptz,
     UNIQUE (tenant, owner_subject, skill_id, version),
+    UNIQUE (tenant, owner_subject, id),
     CHECK ((status = 'revoked') = (revoked_at IS NOT NULL))
 );
 ALTER TABLE acp1.skill_binding ENABLE ROW LEVEL SECURITY;
@@ -35,7 +36,8 @@ CREATE TABLE acp1.skill_binding_revision (
     actor_subject text NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (binding_id,revision),
-    FOREIGN KEY (binding_id) REFERENCES acp1.skill_binding(id) ON DELETE RESTRICT,
+    FOREIGN KEY (tenant, owner_subject, binding_id)
+      REFERENCES acp1.skill_binding(tenant, owner_subject, id) ON DELETE RESTRICT,
     CHECK (actor_subject = owner_subject)
 );
 ALTER TABLE acp1.skill_binding_revision ENABLE ROW LEVEL SECURITY;
