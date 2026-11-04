@@ -9,7 +9,7 @@ import psycopg
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
-from agent_control_plane import __version__, db, memory
+from agent_control_plane import __version__, curation, db, memory
 from agent_control_plane.auth import Principal, require_admin, require_personal, require_programme
 from agent_control_plane.models import ExecutionPlan, TaskRequest
 from agent_control_plane.routing import plan_task
@@ -384,6 +384,15 @@ def create_app(settings=None):
         if result is None:
             raise HTTPException(404, "Conversation not found")
         return result
+
+    @app.get("/v1/conversations/{conversation_id}/review")
+    def review_conversation(conversation_id: UUID, principal: Personal):
+        """Owner-only read; no model call, memory write or skill activation."""
+        with db.connection(configured.database_url) as conn:
+            result = db.conversation_detail(conn, principal, conversation_id)
+        if result is None:
+            raise HTTPException(404, "Conversation not found")
+        return curation.preview(result)
 
     @app.post("/v1/conversations/{conversation_id}/messages", status_code=201)
     def add_message(conversation_id: UUID, request: MessageCreate, principal: Personal):
