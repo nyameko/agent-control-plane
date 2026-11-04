@@ -11,7 +11,7 @@ WORKER_LOCK = (174092, 2)
 PERSONAL_WORKER_LOCK = (174092, 3)
 DIAGNOSTIC = "quantum-platform-pod-readiness"
 SCHEMA_VERSION = 3
-COMPATIBLE_SCHEMA_VERSIONS = frozenset({3, 4, 5, 6})
+COMPATIBLE_SCHEMA_VERSIONS = frozenset({3, 4, 5, 6, 7})
 FIELDS = """
  t.id AS task_id, t.tenant, t.requested_by, t.kind, t.diagnostic,
  t.conversation_id, t.input_message_id, t.created_at,
