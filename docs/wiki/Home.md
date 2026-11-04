@@ -2,7 +2,7 @@
 
 **Agent Control Plane (ACP)** supplies a durable, self-hostable research context across the Quantum Platform browser, notebooks, terminal and future editor clients. It coordinates authorised agents, models and task/run history without becoming a superuser, a scheduler or a second scientific workflow engine.
 
-**Source snapshot:** 4 November 2026, default branch `main`. M4c/M4e schema and interface implementations in source may be ahead of the **live** PostgreSQL schema or deployed image. Health endpoints are not proof of feature conformance.
+**Published source:** reviewed `dev` documentation. M4c/M4e schema and interface implementations in source may be ahead of the **live** PostgreSQL schema or deployed image. A Wiki publication is not a live acceptance result. Health endpoints are not proof of feature conformance.
 
 ## Navigation
 
