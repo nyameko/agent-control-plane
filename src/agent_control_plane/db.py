@@ -124,6 +124,7 @@ def list_tasks(conn, tenant, offset):
 def create_project(conn, principal, title):
     project_id = uuid4()
     with scoped(conn, principal.tenant, principal.subject):
+        title = _unique_workspace_title(conn, principal, "project", title)
         return conn.execute(
             "INSERT INTO acp1.project(id,tenant,owner_subject,title) VALUES (%s,%s,%s,%s) "
             "RETURNING id,title,created_at,updated_at,archived_at",
@@ -141,6 +142,46 @@ def list_projects(conn, principal):
 
 class WorkspaceStale(Exception):
     """The owner supplied an outdated version of a private workspace."""
+
+
+class WorkspaceTitleConflict(Exception):
+    """An active workspace already uses this title."""
+
+
+def _unique_workspace_title(conn, principal, table, title, *, exclude_id=None,
+                            auto_number=False):
+    """Case-insensitive uniqueness for NEW/renamed owner workspaces.
+
+    Existing historical duplicate rows are not destructively rewritten. Serialize
+    all writers per principal with a transaction advisory lock; the two table
+    names are fixed call-site literals, never request-supplied SQL.
+    """
+    if table not in {"project", "conversation"}:
+        raise ValueError("Unknown workspace table")
+    conn.execute(
+        "SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))",
+        (principal.tenant, principal.subject),
+    )
+    rows = conn.execute(
+        f"SELECT id, lower(btrim(title)) AS normalized_title "
+        f"FROM acp1.{table} WHERE archived_at IS NULL"
+    ).fetchall()
+    used = {
+        row["normalized_title"] for row in rows if row["id"] != exclude_id
+    }
+    normalized = title.strip()
+    if not normalized:
+        raise ValueError("Workspace title is empty")
+    if normalized.lower() not in used:
+        return normalized
+    if auto_number and normalized.casefold() == "new chat":
+        for number in range(2, 10001):
+            candidate = f"New chat ({number})"
+            if candidate.lower() not in used:
+                return candidate
+    raise WorkspaceTitleConflict
+
+
 
 
 def _workspace_etag(row):
@@ -170,8 +211,18 @@ def update_project(conn, principal, project_id, *, if_match, title=None, archive
         updates = []
         values = []
         if title is not None:
+            title = _unique_workspace_title(
+                conn, principal, "project", title, exclude_id=project_id,
+            )
             updates.append("title=%s")
             values.append(title)
+        elif archived is False:
+            current = conn.execute(
+                "SELECT title FROM acp1.project WHERE id=%s", (project_id,),
+            ).fetchone()
+            _unique_workspace_title(
+                conn, principal, "project", current["title"], exclude_id=project_id,
+            )
         if archived is not None:
             updates.append("archived_at=clock_timestamp()" if archived else "archived_at=NULL")
         if not updates:
@@ -200,6 +251,20 @@ def update_conversation(
             raise WorkspaceStale
         updates = []
         values = []
+        if title is not None or archived is False:
+            candidate = title
+            if candidate is None:
+                current = conn.execute(
+                    "SELECT title FROM acp1.conversation WHERE id=%s",
+                    (conversation_id,),
+                ).fetchone()
+                candidate = current["title"]
+            unique = _unique_workspace_title(
+                conn, principal, "conversation", candidate,
+                exclude_id=conversation_id,
+            )
+            if title is not None:
+                title = unique
         if title is not None:
             updates.append("title=%s")
             values.append(title)
@@ -235,6 +300,9 @@ def create_conversation(conn, principal, title, project_id=None):
             ).fetchone()
             if project is None:
                 return None
+        title = _unique_workspace_title(
+            conn, principal, "conversation", title, auto_number=True,
+        )
         return conn.execute(
             "INSERT INTO acp1.conversation"
             "(id,tenant,owner_subject,project_id,title) VALUES (%s,%s,%s,%s,%s) "
