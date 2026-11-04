@@ -1,0 +1,40 @@
+name: Documentation correction or help request
+description: Ask about setup, use, development or report an incorrect wiki page
+title: "[Docs/Help] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search docs/wiki/, current source and existing issues first. Do not post private keys, passwords, tokens, production Secrets, private research data or sensitive network details. Security issues require private reporting.
+  - type: input
+    id: page
+    attributes:
+      label: Relevant wiki or source link
+    validations:
+      required: false
+  - type: dropdown
+    id: purpose
+    attributes:
+      label: Request category
+      options:
+        - Incorrect or out-of-date reference
+        - Setup / installation / environment question
+        - User or teaching workflow help
+        - Developer API or contribution help
+        - Guide agent answer or citation correction
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Task, question and proposed correction
+      description: Describe what you tried, what happened, and what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Versioned source, release or scientific evidence
+      description: Source commits, observed test results or publications that can support a correction.
+    validations:
+      required: false
