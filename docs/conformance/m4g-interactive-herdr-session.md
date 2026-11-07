@@ -34,6 +34,30 @@ acp> help
 acp> quit
 ```
 
+### Optional native Herdr plugin tab (no new UI framework)
+
+After the user explicitly installs and tests the reviewed ACP CLI in the
+approved research login environment, they can opt in to the upstream Herdr
+plugin mechanism, using the reviewed source revision of this repository:
+
+```bash
+herdr plugin install nyameko/agent-control-plane/integrations/herdr --ref <REVIEWED_COMMIT_SHA>
+herdr plugin pane open --plugin quantum.acp --entrypoint research
+```
+
+This uses `integrations/herdr/herdr-plugin.toml` to open the same `acp
+--browser-pair session` process in a normal Herdr **tab**. There is no
+privileged shell integration, automatic boot-time launch, credential
+persistence, per-user configuration overwrite or additional background
+service. Installing the plugin merely registers a user-invoked pane; the
+human still authorizes the first ACP request. Herdr session reattachment
+preserves that running pane until the process exits; reauthorization must
+still obey QP's fixed expiry policy.
+
+**Do not run the commands above before the reviewed source has been merged,
+its exact commit pinned and the optional ACP CLI installed.** This plugin
+is user-managed and not part of the Ansible role by default.
+
 The command `connect` starts a fresh **explicit browser approval**, not
 an automatic renewal. The current QP pairing backend enforces a
 **300-second absolute expiry**, even if Herdr itself remains attached for
