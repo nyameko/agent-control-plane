@@ -131,3 +131,69 @@ def test_interactive_invalid_command_never_reaches_gateway(capsys, monkeypatch):
     ) == 0
     assert len(calls) == 2
     assert "Invalid command" in capsys.readouterr().out
+
+
+def test_memory_readthrough_uses_portal_owner_and_never_caches(capsys, monkeypatch):
+    from uuid import UUID
+    memory_id = str(uuid4())
+    pairing = str(uuid4())
+    proof = "memory-readthrough-test-0123456789abcdefghijkl"
+    requests = []
+    revisions = iter((2, 3))
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path.endswith("/terminal-pairings/start/"):
+            return httpx.Response(201, json={
+                "pairing_id": pairing, "verification_code": "D00DFEED1234",
+                "pairing_proof": proof, "expires_in": 300, "poll_interval": 3,
+            })
+        if request.url.path.endswith("/terminal-pairings/status/"):
+            return httpx.Response(200, json={"state": "approved"})
+        assert request.url.path == "/api/v1/agent/terminal-gateway/memories/"
+        assert request.headers["Authorization"] == "Pairing " + proof
+        assert UUID(request.headers["X-ACP-Pairing-ID"]) == UUID(pairing)
+        revision = next(revisions)
+        return httpx.Response(200, json={
+            "items": [{
+                "id": memory_id, "status": "active",
+                "revision": revision,
+                "body": f"Research note revision {revision}",
+            }],
+        })
+
+    monkeypatch.setattr(sys, "stdin", io.StringIO("memories\nmemories\nquit\n"))
+    assert terminal_client.main(
+        ["--url", "https://quantum.example", "--browser-pair", "session"],
+        client_factory=_client(handler),
+    ) == 0
+    out = capsys.readouterr()
+    assert "[revision 2]" in out.out
+    assert "[revision 3]" in out.out
+    assert len(requests) == 4  # start, approve poll, two fresh memory reads
+    assert proof not in out.out + out.err
+
+
+def test_one_shot_memories_route_uses_portal_readonly(capsys):
+    pairing = str(uuid4())
+    proof = "memory-one-shot-test-0123456789abcdefghijkl"
+    paths = []
+
+    def handler(request):
+        paths.append(request.url.path)
+        if request.url.path.endswith("/terminal-pairings/start/"):
+            return httpx.Response(201, json={
+                "pairing_id": pairing, "verification_code": "D00DFEED1234",
+                "pairing_proof": proof, "expires_in": 300, "poll_interval": 3,
+            })
+        if request.url.path.endswith("/terminal-pairings/status/"):
+            return httpx.Response(200, json={"state": "approved"})
+        assert request.url.path == "/api/v1/agent/terminal-gateway/memories/"
+        return httpx.Response(200, json={"items": []})
+
+    assert terminal_client.main(
+        ["--url", "https://quantum.example", "--browser-pair", "memories"],
+        client_factory=_client(handler),
+    ) == 0
+    assert paths[-1] == "/api/v1/agent/terminal-gateway/memories/"
+    assert "No records" in capsys.readouterr().out
