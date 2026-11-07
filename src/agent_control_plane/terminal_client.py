@@ -17,6 +17,8 @@ from uuid import UUID, uuid4
 
 import httpx
 
+from agent_control_plane.terminal_session import run_session
+
 
 def validated_url(url: str) -> str:
     parsed = urlsplit(url)
@@ -47,6 +49,7 @@ def parser() -> argparse.ArgumentParser:
     sub = cli.add_subparsers(dest="command", required=True)
     sub.add_parser("projects", help="List private projects")
     sub.add_parser("chats", help="List private conversations")
+    sub.add_parser("session", help="Interactive browser-approved conversation pane for Herdr")
     new = sub.add_parser("new", help="Create private conversation")
     new.add_argument("title", help="New conversation title")
     show = sub.add_parser("show", help="Display one conversation")
@@ -134,6 +137,11 @@ def main(argv=None, *, client_factory=httpx.Client) -> int:
     args = parser().parse_args(argv)
     try:
         endpoint = validated_url(args.url)
+        if args.command == "session":
+            if not args.browser_pair:
+                raise ValueError("Interactive session requires --browser-pair (no raw token mode)")
+            with client_factory(timeout=15, follow_redirects=False) as client:
+                return run_session(client, endpoint, pairing=_browser_pair, formatter=_format)
         url = {
             "projects": "/v1/projects",
             "chats": "/v1/conversations",
