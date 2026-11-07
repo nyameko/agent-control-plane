@@ -1,0 +1,14 @@
+# Optional Herdr v0.9.5 plugin. This invokes the EXISTING ACP CLI only.
+# No daemon, no new OAuth/SSH identity, no token files, no automatic agent.
+id = "quantum.acp"
+name = "Quantum Platform conversations"
+version = "0.1.0"
+min_herdr_version = "0.9.5"
+description = "Open an authorized ACP conversation pane using the Quantum Platform browser approval"
+platforms = ["linux"]
+
+[[panes]]
+id = "research"
+title = "ACP research"
+placement = "tab"
+command = ["acp", "--url", "https://quantum.nyameko.com", "--browser-pair", "session"]
