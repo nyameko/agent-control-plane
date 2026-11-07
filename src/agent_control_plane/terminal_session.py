@@ -16,7 +16,7 @@ import httpx
 _GATEWAY = "/api/v1/agent/terminal-gateway"
 _HELP = (
     "projects | chats | show <conversation-uuid> | send <conversation-uuid> <message>\n"
-    "new <title> | run <run-uuid> | connect (new browser approval) | help | quit"
+    "memories (approved, current) | new <title> | run <run-uuid> | connect | help | quit"
 )
 
 
@@ -24,8 +24,11 @@ def _operation(line: str):
     """Parse only named ACP operations; never interpret the input as shell."""
     action, _, argument = line.partition(" ")
     argument = argument.strip()
-    if action in ("projects", "chats") and not argument:
-        path = "/projects/" if action == "projects" else "/conversations/"
+    if action in ("projects", "chats", "memories") and not argument:
+        path = {
+            "projects": "/projects/", "chats": "/conversations/",
+            "memories": "/memories/",
+        }[action]
         return "GET", _GATEWAY + path, None, None
     if action in ("show", "run"):
         value = str(UUID(argument))
