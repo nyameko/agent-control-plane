@@ -49,6 +49,7 @@ def parser() -> argparse.ArgumentParser:
     sub = cli.add_subparsers(dest="command", required=True)
     sub.add_parser("projects", help="List private projects")
     sub.add_parser("chats", help="List private conversations")
+    sub.add_parser("memories", help="Retrieve current approved private memories (read-only)")
     sub.add_parser("session", help="Interactive browser-approved conversation pane for Herdr")
     new = sub.add_parser("new", help="Create private conversation")
     new.add_argument("title", help="New conversation title")
@@ -67,6 +68,14 @@ def _format(result, *, json_mode=False):
     if json_mode:
         return json.dumps(result, indent=2, default=str)
     if isinstance(result, dict) and "items" in result:
+        # Memory results are deliberately rendered from live ACP retrieval,
+        # never saved as Herdr files or granted to other local processes.
+        if result["items"] and "body" in result["items"][0]:
+            return "\n".join(
+                f"{row.get('id', '')} [revision {row.get('revision', '?')}] "
+                + "".join(c if c.isprintable() else " " for c in str(row.get("body", "")))
+                for row in result["items"]
+            )
         return "\n".join(
             f"{row.get('id', '')}\t{row.get('title', row.get('status', ''))}"
             for row in result["items"]
@@ -145,6 +154,7 @@ def main(argv=None, *, client_factory=httpx.Client) -> int:
         url = {
             "projects": "/v1/projects",
             "chats": "/v1/conversations",
+            "memories": "/v1/memories/retrieve",
             "new": "/v1/conversations",
             "show": f"/v1/conversations/{args.conversation_id}" if args.command == "show" else "",
             "send": (
@@ -186,7 +196,9 @@ def main(argv=None, *, client_factory=httpx.Client) -> int:
             if args.browser_pair:
                 headers.update(_browser_pair(client, endpoint))
                 url = "/api/v1/agent/terminal-gateway" + url.removeprefix("/v1")
-                if url.endswith("/turns"):
+                if url.endswith("/memories/retrieve"):
+                    url = "/api/v1/agent/terminal-gateway/memories/"
+                elif url.endswith("/turns"):
                     url += "/"
                 elif url.endswith("/projects") or url.endswith("/conversations"):
                     url += "/"
