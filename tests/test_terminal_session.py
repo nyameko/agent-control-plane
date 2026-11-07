@@ -51,7 +51,9 @@ def test_interactive_pane_reuses_approval_and_conversation_uuid(capsys, monkeypa
         raise AssertionError("unexpected route: " + path)
 
     monkeypatch.setattr(
-        sys, "stdin", io.StringIO(f"chats\nshow {conversation}\nsend {conversation} continue exact C1\nquit\n")
+        sys, "stdin", io.StringIO(
+            f"chats\nshow {conversation}\nsend {conversation} continue exact C1\nquit\n"
+        )
     )
     status = terminal_client.main(
         ["--url", "https://quantum.example", "--browser-pair", "session"],
