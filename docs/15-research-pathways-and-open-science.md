@@ -84,3 +84,13 @@ Non-goals now: moving notebook code into ACP; fabricating course completion; dep
 ## Next review questions
 
 Who is the canonical authorisation authority for course approvals? What is the smallest progress-evidence schema that survives a notebook revision? Which FAIR research objects should be exportable in R1 versus later federation? Which module should become the first expert-reviewed QEC reference course?
+
+## M5 research assistance: notebooks prepare, Slurm computes
+
+> **Scientific preparation is cheap; expensive execution is scheduled.**
+
+The default science path is a lightweight authenticated **JupyterHub/KubeSpawner CPU workbench** where a researcher edits a reviewed notebook and prepares a Qiskit/PennyLane/Cirq/Pulser/IQM task. A100/H200 GPU execution then runs as an **independent native Slurm batch job** with explicit researcher permission; the workbench can close without holding the GPU allocation. A physical QPU requires different provider-native credentials, quota and consent. Framework, simulator backend, resource target and physical provider must remain distinct when the Guide explains or proposes execution.
+
+The ACP Guide helps students select a *reviewed* Quantum Workflows notebook/environment, explain Slurm request/accounting, interpret `sacct` or provenance and resume research. It does **not** launch an interactive GPU notebook by default, create a shell gateway, run sudo/`runuser` as researchers, control Slurm as a superuser, introduce an independent scheduler or read unauthorized telemetry/datasets. MCP/agent execution is bounded by the same human programme entitlements and ExecutionRecord access controls. Suggestions may refer to a provider only if actually available and authorized.
+
+**Sequence and evidentiary boundary:** P0 researcher-native Slurm identity/cross-user denial; P1 physically isolated approved A100/H200 allocation; P2 Aer GPU A100 result; P3 H200 site-staged result; P4 existing Quantum Platform Runs catalog/progress; P5 vendor-specific numerical image tests; P6 Guide assistance with status/learning/provenance. The one milestone is notebook opened → real A100 GPU batch → notebook closed → validated results and accounted GPU-hours on return → repeat on H200. ACP P6 cannot be marked passed from prompt tests alone, nor used to bypass P0–P4. [M5 science source](https://github.com/nyameko/quantum-workflows/blob/dev/docs/M5-BATCH-FIRST-SIMULATOR-PATH.md); [initial eight lessons](https://github.com/nyameko/quantum-workflows/tree/dev/labs/01-intro-quantum-computing/batch-first). No production rollout is implied.
